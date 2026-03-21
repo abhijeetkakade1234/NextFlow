@@ -2,6 +2,7 @@
 import { task } from '@trigger.dev/sdk'
 import { z } from 'zod'
 import { $ } from 'execa'
+import { execa } from 'execa'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
@@ -17,6 +18,11 @@ const CropInputSchema = z.object({
   widthPercent:  z.number().min(1).max(100).default(100),
   heightPercent: z.number().min(1).max(100).default(100),
 })
+
+function getBinaryPath(envName: 'FFMPEG_PATH' | 'FFPROBE_PATH', fallback: string): string {
+  const value = process.env[envName]?.trim()
+  return value && value.length > 0 ? value : fallback
+}
 
 async function uploadToTransloadit(filePath: string): Promise<string> {
   const client = new Transloadit({
@@ -57,7 +63,8 @@ export const cropImageTask = task({
       const outputPath = path.join(tmpDir, 'output.jpg')
       await fs.writeFile(inputPath, Buffer.from(buffer))
 
-      const probeResult = await $`ffprobe -v quiet -print_format json -show_streams ${inputPath}`
+      const ffprobeBin = getBinaryPath('FFPROBE_PATH', 'ffprobe')
+      const probeResult = await execa(ffprobeBin, ['-v', 'quiet', '-print_format', 'json', '-show_streams', inputPath])
       const probeData = JSON.parse(probeResult.stdout) as {
         streams: Array<{ codec_type: string; width: number; height: number }>
       }
@@ -70,7 +77,8 @@ export const cropImageTask = task({
       const cropW = Math.round((widthPercent / 100) * width)
       const cropH = Math.round((heightPercent / 100) * height)
 
-      await $`ffmpeg -i ${inputPath} -vf crop=${cropW}:${cropH}:${cropX}:${cropY} -q:v 2 ${outputPath}`
+      const ffmpegBin = getBinaryPath('FFMPEG_PATH', 'ffmpeg')
+      await execa(ffmpegBin, ['-i', inputPath, '-vf', `crop=${cropW}:${cropH}:${cropX}:${cropY}`, '-q:v', '2', outputPath])
 
       const croppedUrl = await uploadToTransloadit(outputPath)
 
@@ -87,7 +95,11 @@ export const cropImageTask = task({
 
       return { success: true as const, url: croppedUrl }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage =
+        /ffprobe|ffmpeg|not recognized/i.test(message)
+          ? 'FFmpeg/ffprobe not found. Install FFmpeg or set FFMPEG_PATH and FFPROBE_PATH in .env.local.'
+          : message
       await prisma.nodeResult.update({
         where: { id: nodeResultId },
         data: {

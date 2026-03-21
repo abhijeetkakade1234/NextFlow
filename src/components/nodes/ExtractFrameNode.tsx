@@ -5,6 +5,7 @@ import { Film } from 'lucide-react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
 import type { ExtractFrameFlowNode } from '@/types/nodes'
+import { emitRunStarted } from '@/lib/run-events'
 
 export function ExtractFrameNode({ id, data }: NodeProps<ExtractFrameFlowNode>) {
   const updateNodeData = useWorkflowStore(s => s.updateNodeData)
@@ -20,11 +21,17 @@ export function ExtractFrameNode({ id, data }: NodeProps<ExtractFrameFlowNode>) 
         updateNodeData(id, { isRunning: false, error: 'Save the workflow first' })
         return
       }
-      await fetch('/api/runs', {
+      const res = await fetch('/api/runs', {
         method: 'POST',
         body: JSON.stringify({ workflowId, scope: 'SINGLE', nodeId: id }),
         headers: { 'Content-Type': 'application/json' },
       })
+      const data = await res.json()
+      if (!res.ok) {
+        updateNodeData(id, { isRunning: false, error: data.error ?? 'Run failed' })
+        return
+      }
+      emitRunStarted(data.runId, [id])
     } catch {
       updateNodeData(id, { isRunning: false, error: 'Failed to start run' })
     }

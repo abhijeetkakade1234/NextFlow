@@ -11,6 +11,7 @@ import { UserButton } from '@clerk/nextjs'
 import type { Edge, Viewport } from '@xyflow/react'
 import type { AppNode } from '@/types/nodes'
 import type { NodeResult } from '@/types/workflow'
+import { RUN_STARTED_EVENT, type RunStartedDetail } from '@/lib/run-events'
 
 type Props = {
   workflowId: string
@@ -51,6 +52,20 @@ export function WorkflowEditorClient({
       }
     }
   }, [])
+
+  useEffect(() => {
+    const handler = (evt: Event) => {
+      const customEvt = evt as CustomEvent<RunStartedDetail>
+      const detail = customEvt.detail
+      if (!detail?.runId) return
+
+      startRun(detail.runId, detail.nodeIds)
+      startRunPolling(detail.runId)
+    }
+
+    window.addEventListener(RUN_STARTED_EVENT, handler)
+    return () => window.removeEventListener(RUN_STARTED_EVENT, handler)
+  }, [startRun])
 
   const applyNodeResult = (nodeResult: NodeResult) => {
     if (nodeResult.status === 'RUNNING') {

@@ -14,6 +14,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
-  const { params, signature } = createTransloaditParams(result.data.fileType)
-  return NextResponse.json({ params, signature })
+  const { params, paramsString, signature } = createTransloaditParams(result.data.fileType)
+  return NextResponse.json({ params, paramsString, signature })
 }

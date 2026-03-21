@@ -4,6 +4,5 @@ export function requireEnv(name: string): string {
   if (!value || value.trim().length === 0) {
     throw new Error(`Missing required environment variable: ${name}`)
   }
-  return value
+  return value.trim()
 }
-

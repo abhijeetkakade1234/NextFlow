@@ -35,5 +35,5 @@ export function createTransloaditParams(fileType: 'image' | 'video') {
     .update(paramsString)
     .digest('hex')
 
-  return { params, signature: `sha384:${signature}` }
+  return { params, paramsString, signature: `sha384:${signature}` }
 }

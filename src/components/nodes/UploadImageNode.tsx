@@ -12,15 +12,22 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
 
   const handleUpload = useCallback(async (file: File) => {
     try {
+      updateNodeData(id, { error: null })
+
       const res = await fetch('/api/upload/params', {
         method: 'POST',
         body: JSON.stringify({ fileType: 'image', fileName: file.name }),
         headers: { 'Content-Type': 'application/json' },
       })
-      const { params, signature } = await res.json()
+      const paramsPayload = await res.json()
+      if (!res.ok) {
+        updateNodeData(id, { error: paramsPayload.error ?? 'Failed to prepare upload params' })
+        return
+      }
+      const { params, paramsString, signature } = paramsPayload
 
       const formData = new FormData()
-      formData.append('params', JSON.stringify(params))
+      formData.append('params', typeof paramsString === 'string' ? paramsString : JSON.stringify(params))
       formData.append('signature', signature)
       formData.append('file', file)
 
@@ -29,6 +36,19 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
         body: formData,
       })
       const assembly = await uploadRes.json()
+      if (!uploadRes.ok) {
+        const uploadError =
+          assembly?.error ??
+          assembly?.message ??
+          (Array.isArray(assembly?.errors) ? assembly.errors.join(', ') : null) ??
+          `Transloadit upload failed (${uploadRes.status})`
+        updateNodeData(id, { error: uploadError })
+        return
+      }
+      if (!assembly?.assembly_id) {
+        updateNodeData(id, { error: 'Upload failed: missing assembly id from Transloadit' })
+        return
+      }
 
       let attempts = 0
       const poll = async (): Promise<string | null> => {
@@ -46,10 +66,13 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
 
       const imageUrl = await poll()
       if (imageUrl) {
-        updateNodeData(id, { imageUrl, fileName: file.name })
+        updateNodeData(id, { imageUrl, fileName: file.name, error: null })
+      } else {
+        updateNodeData(id, { error: 'Upload polling timed out or assembly did not complete' })
       }
     } catch (err) {
       console.error('Upload failed', err)
+      updateNodeData(id, { error: 'Upload failed. Check console/logs for details.' })
     }
   }, [id, updateNodeData])
 
@@ -86,6 +109,11 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
             onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
           />
         </label>
+      )}
+      {data.error && (
+        <div className="mt-2 p-2 bg-[#ef4444]/10 rounded-lg border border-[#ef4444]/30">
+          <p className="text-xs text-red-400">{data.error}</p>
+        </div>
       )}
 
       <Handle

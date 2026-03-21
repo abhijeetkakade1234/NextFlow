@@ -6,6 +6,7 @@ import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { GEMINI_MODELS } from '@/types/nodes'
 import type { LLMFlowNode } from '@/types/nodes'
+import { emitRunStarted } from '@/lib/run-events'
 
 export function LLMNode({ id, data }: NodeProps<LLMFlowNode>) {
   const updateNodeData = useWorkflowStore(s => s.updateNodeData)
@@ -28,10 +29,12 @@ export function LLMNode({ id, data }: NodeProps<LLMFlowNode>) {
         body: JSON.stringify({ workflowId, scope: 'SINGLE', nodeId: id }),
         headers: { 'Content-Type': 'application/json' },
       })
+      const data = await res.json()
       if (!res.ok) {
-        const err = await res.json()
-        updateNodeData(id, { isRunning: false, error: err.error ?? 'Run failed' })
+        updateNodeData(id, { isRunning: false, error: data.error ?? 'Run failed' })
+        return
       }
+      emitRunStarted(data.runId, [id])
     } catch {
       updateNodeData(id, { isRunning: false, error: 'Failed to start run' })
     }

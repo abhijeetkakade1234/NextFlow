@@ -16,11 +16,13 @@ export function createNode(
       label: 'Upload Image',
       imageUrl: null,
       fileName: null,
+      error: null,
     },
     uploadVideoNode: {
       label: 'Upload Video',
       videoUrl: null,
       fileName: null,
+      error: null,
     },
     llmNode: {
       label: 'Run LLM',

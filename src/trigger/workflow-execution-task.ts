@@ -161,16 +161,57 @@ async function executeNode(
       if (!result.ok) throw new Error('LLM task failed')
       return result.output.text
     }
+    case 'uploadImageNode': {
+      const imageUrl = node.data.imageUrl as string | null | undefined
+      if (!imageUrl) throw new Error('No image uploaded')
+      await prisma.nodeResult.update({
+        where: { id: nodeResult.id },
+        data: {
+          status: 'SUCCESS',
+          output: JSON.stringify({ url: imageUrl }),
+          completedAt: new Date(),
+          durationMs: 0,
+        },
+      })
+      return imageUrl
+    }
+    case 'uploadVideoNode': {
+      const videoUrl = node.data.videoUrl as string | null | undefined
+      if (!videoUrl) throw new Error('No video uploaded')
+      await prisma.nodeResult.update({
+        where: { id: nodeResult.id },
+        data: {
+          status: 'SUCCESS',
+          output: JSON.stringify({ url: videoUrl }),
+          completedAt: new Date(),
+          durationMs: 0,
+        },
+      })
+      return videoUrl
+    }
     case 'cropImageNode': {
+      const imageUrl = inputs.image_url as string | undefined
+      if (!imageUrl) throw new Error('Missing required input: image_url')
       const result = await tasks.triggerAndWait<typeof cropImageTask>('crop-image-task', {
         nodeResultId: nodeResult.id,
-        imageUrl: inputs.image_url as string,
+        imageUrl,
         xPercent: Number(inputs.x_percent ?? node.data.xPercent ?? 0),
         yPercent: Number(inputs.y_percent ?? node.data.yPercent ?? 0),
         widthPercent: Number(inputs.width_percent ?? node.data.widthPercent ?? 100),
         heightPercent: Number(inputs.height_percent ?? node.data.heightPercent ?? 100),
       })
       if (!result.ok) throw new Error('Crop task failed')
+      return result.output.url
+    }
+    case 'extractFrameNode': {
+      const videoUrl = inputs.video_url as string | undefined
+      if (!videoUrl) throw new Error('Missing required input: video_url')
+      const result = await tasks.triggerAndWait<typeof extractFrameTask>('extract-frame-task', {
+        nodeResultId: nodeResult.id,
+        videoUrl,
+        timestamp: String(inputs.timestamp ?? node.data.timestamp ?? '0'),
+      })
+      if (!result.ok) throw new Error('Extract frame task failed')
       return result.output.url
     }
     default: return null

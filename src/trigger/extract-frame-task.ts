@@ -1,7 +1,7 @@
 // src/trigger/extract-frame-task.ts
 import { task } from '@trigger.dev/sdk'
 import { z } from 'zod'
-import { $ } from 'execa'
+import { execa } from 'execa'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
@@ -15,15 +15,32 @@ const ExtractFrameInputSchema = z.object({
   timestamp:    z.string().default('0'),
 })
 
+function getBinaryPath(envName: 'FFMPEG_PATH' | 'FFPROBE_PATH', fallback: string): string {
+  const value = process.env[envName]?.trim()
+  return value && value.length > 0 ? value : fallback
+}
+
 async function resolveTimestamp(videoPath: string, timestamp: string): Promise<number> {
-  if (timestamp.endsWith('%')) {
-    const result = await $`ffprobe -v quiet -print_format json -show_format ${videoPath}`
+  const value = timestamp.trim()
+  if (value.endsWith('%')) {
+    const pctString = value.slice(0, -1)
+    const pct = Number(pctString)
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      throw new Error(`Invalid timestamp percentage: "${timestamp}"`)
+    }
+
+    const ffprobeBin = getBinaryPath('FFPROBE_PATH', 'ffprobe')
+    const result = await execa(ffprobeBin, ['-v', 'quiet', '-print_format', 'json', '-show_format', videoPath])
     const data = JSON.parse(result.stdout) as { format: { duration: string } }
     const duration = parseFloat(data.format.duration)
-    const pct = parseFloat(timestamp) / 100
-    return duration * pct
+    return duration * (pct / 100)
   }
-  return parseFloat(timestamp) || 0
+
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new Error(`Invalid timestamp seconds: "${timestamp}"`)
+  }
+  return seconds
 }
 
 async function uploadToTransloadit(filePath: string): Promise<string> {
@@ -66,7 +83,8 @@ export const extractFrameTask = task({
       await fs.writeFile(inputPath, Buffer.from(buffer))
 
       const seekTime = await resolveTimestamp(inputPath, timestamp)
-      await $`ffmpeg -ss ${seekTime} -i ${inputPath} -vframes 1 -q:v 2 ${outputPath}`
+      const ffmpegBin = getBinaryPath('FFMPEG_PATH', 'ffmpeg')
+      await execa(ffmpegBin, ['-ss', String(seekTime), '-i', inputPath, '-vframes', '1', '-q:v', '2', outputPath])
 
       const frameUrl = await uploadToTransloadit(outputPath)
 
@@ -83,7 +101,11 @@ export const extractFrameTask = task({
 
       return { success: true as const, url: frameUrl }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage =
+        /ffprobe|ffmpeg|not recognized/i.test(message)
+          ? 'FFmpeg/ffprobe not found. Install FFmpeg or set FFMPEG_PATH and FFPROBE_PATH in .env.local.'
+          : message
       await prisma.nodeResult.update({
         where: { id: nodeResultId },
         data: {

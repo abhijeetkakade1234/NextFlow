@@ -5,6 +5,7 @@ import { Crop } from 'lucide-react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
 import type { CropImageFlowNode } from '@/types/nodes'
+import { emitRunStarted } from '@/lib/run-events'
 
 function NumberInput({
   label, value, onChange, disabled
@@ -44,11 +45,17 @@ export function CropImageNode({ id, data }: NodeProps<CropImageFlowNode>) {
         updateNodeData(id, { isRunning: false, error: 'Save the workflow first' })
         return
       }
-      await fetch('/api/runs', {
+      const res = await fetch('/api/runs', {
         method: 'POST',
         body: JSON.stringify({ workflowId, scope: 'SINGLE', nodeId: id }),
         headers: { 'Content-Type': 'application/json' },
       })
+      const data = await res.json()
+      if (!res.ok) {
+        updateNodeData(id, { isRunning: false, error: data.error ?? 'Run failed' })
+        return
+      }
+      emitRunStarted(data.runId, [id])
     } catch {
       updateNodeData(id, { isRunning: false, error: 'Failed to start run' })
     }

@@ -15,12 +15,14 @@ export type UploadImageNodeData = {
   label: string
   imageUrl: string | null
   fileName: string | null
+  error?: string | null
 }
 
 export type UploadVideoNodeData = {
   label: string
   videoUrl: string | null
   fileName: string | null
+  error?: string | null
 }
 
 export type LLMNodeData = {
