@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* ─── React Flow (MUST be before theme) ─────────────── */
+@import "@xyflow/react/dist/style.css";
+
+/* ─── Krea Dark Theme ────────────────────────────────── */
+:root {
+  --krea-bg: #0a0a0a;
+  --krea-surface: #111111;
+  --krea-surface-2: #161616;
+  --krea-border: #1f1f1f;
+  --krea-border-hover: #2a2a2a;
+  --krea-text: #e5e5e5;
+  --krea-text-secondary: #9ca3af;
+  --krea-muted: #6b7280;
+  --krea-accent: #7c3aed;
+  --krea-accent-hover: #6d28d9;
+  --krea-accent-light: #a78bfa;
+  --krea-success: #10b981;
+  --krea-error: #ef4444;
+  --krea-warning: #f59e0b;
+  --krea-running: #6366f1;
+}
+
+/* ─── Tailwind v4 Design Tokens ─────────────────────── */
+@theme inline {
+  --color-krea-bg: var(--krea-bg);
+  --color-krea-surface: var(--krea-surface);
+  --color-krea-surface-2: var(--krea-surface-2);
+  --color-krea-border: var(--krea-border);
+  --color-krea-border-hover: var(--krea-border-hover);
+  --color-krea-text: var(--krea-text);
+  --color-krea-text-secondary: var(--krea-text-secondary);
+  --color-krea-muted: var(--krea-muted);
+  --color-krea-accent: var(--krea-accent);
+  --color-krea-accent-hover: var(--krea-accent-hover);
+  --color-krea-accent-light: var(--krea-accent-light);
+  --color-krea-success: var(--krea-success);
+  --color-krea-error: var(--krea-error);
+  --color-krea-warning: var(--krea-warning);
+  --color-krea-running: var(--krea-running);
+
+  /* Animations */
+  --animate-pulse-glow: pulse-glow 1.5s ease-in-out infinite;
+  --animate-edge-flow: edge-flow 1.5s linear infinite;
+  --animate-spin: spin 1s linear infinite;
+}
+
+/* ─── Base Styles ────────────────────────────────────── */
+body {
+  background: var(--krea-bg);
+  color: var(--krea-text);
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ─── React Flow Overrides ───────────────────────────── */
+.react-flow__background {
+  background-color: var(--krea-bg) !important;
+}
+
+.react-flow__minimap {
+  background-color: var(--krea-surface) !important;
+  border: 1px solid var(--krea-border);
+  border-radius: 8px;
+}
+
+.react-flow__controls {
+  background-color: var(--krea-surface) !important;
+  border: 1px solid var(--krea-border) !important;
+}
+
+.react-flow__controls button {
+  background-color: var(--krea-surface) !important;
+  border-bottom: 1px solid var(--krea-border) !important;
+  color: var(--krea-text) !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: var(--krea-surface-2) !important;
+}
+
+/* ─── Node Glow Animation (Running State) ────────────── */
+.node-running {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  border-color: #7c3aed !important;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px 2px rgba(124, 58, 237, 0.4),
+                0 0 0 1px rgba(124, 58, 237, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 24px 8px rgba(124, 58, 237, 0.7),
+                0 0 0 1px rgba(124, 58, 237, 0.6);
+  }
+}
+
+@keyframes edge-flow {
+  0%   { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--krea-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--krea-border-hover);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--krea-muted);
+}
+
+/* ─── nodrag utility ─────────────────────────────────── */
+.nodrag {
+  cursor: text !important;
+}

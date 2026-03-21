@@ -1,0 +1,63 @@
+// src/app/api/workflows/[id]/route.ts
+import { auth } from '@clerk/nextjs/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { UpdateWorkflowSchema } from '@/schemas/workflow.schema'
+
+type Params = { params: Promise<{ id: string }> }
+
+export async function GET(_req: NextRequest, { params }: Params) {
+  const { id } = await params
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const workflow = await prisma.workflow.findFirst({
+    where: { id, userId },
+    include: {
+      runs: {
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          nodeResults: {
+            orderBy: { startedAt: 'asc' },
+          },
+        },
+      },
+    },
+  })
+
+  if (!workflow) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json({ workflow })
+}
+
+export async function PUT(req: NextRequest, { params }: Params) {
+  const { id } = await params
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const result = UpdateWorkflowSchema.safeParse(body)
+  if (!result.success) {
+    return NextResponse.json({ error: 'Invalid request', details: result.error.flatten() }, { status: 400 })
+  }
+
+  const updated = await prisma.workflow.updateMany({
+    where: { id, userId },
+    data: result.data,
+  })
+
+  if (updated.count === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json({ success: true })
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { id } = await params
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  await prisma.workflow.deleteMany({
+    where: { id, userId },
+  })
+
+  return NextResponse.json({ success: true })
+}

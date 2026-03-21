@@ -1,0 +1,124 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// WORKFLOW
+// ─────────────────────────────────────────────
+
+model Workflow {
+  id          String   @id @default(cuid())
+  userId      String                          // Clerk userId
+  name        String   @default("Untitled Workflow")
+  description String?
+  
+  // Serialized React Flow state (nodes + edges as JSON)
+  nodesJson   Json     @default("[]")         // FlowNode[]
+  edgesJson   Json     @default("[]")         // FlowEdge[]
+  
+  // Viewport state (zoom + pan position)
+  viewport    Json?                           // { x, y, zoom }
+  
+  runs        WorkflowRun[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([userId, updatedAt])
+}
+
+// ─────────────────────────────────────────────
+// WORKFLOW RUN (one entry per execution)
+// ─────────────────────────────────────────────
+
+model WorkflowRun {
+  id          String    @id @default(cuid())
+  workflowId  String
+  workflow    Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  userId      String                          // denormalized for fast queries
+  
+  // Execution scope
+  scope       RunScope  @default(FULL)
+  
+  // Overall status
+  status      RunStatus @default(RUNNING)
+  
+  // Timing
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?                            // computed on completion
+  
+  // Which nodes were included in this run (array of nodeIds)
+  nodeIds     String[]  @default([])
+  
+  nodeResults NodeResult[]
+  
+  createdAt   DateTime  @default(now())
+  
+  @@index([workflowId])
+  @@index([userId, createdAt])
+}
+
+// ─────────────────────────────────────────────
+// NODE RESULT (one entry per node per run)
+// ─────────────────────────────────────────────
+
+model NodeResult {
+  id          String      @id @default(cuid())
+  runId       String
+  run         WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  nodeId      String                          // React Flow node id
+  nodeType    String                          // 'textNode' | 'llmNode' | etc.
+  nodeLabel   String?                         // display name
+  
+  status      RunStatus   @default(RUNNING)
+  
+  // Serialized inputs that were used
+  inputs      Json?                           // { handleName: value }
+  
+  // Serialized output produced
+  output      Json?                           // string | { url: string } | null
+  
+  // Error message if failed
+  error       String?
+  
+  // Timing
+  startedAt   DateTime    @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+  
+  // Trigger.dev run ID for debugging
+  triggerRunId String?
+  
+  @@index([runId])
+  @@index([runId, nodeId])
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum RunScope {
+  FULL      // entire workflow
+  SELECTED  // user selected N nodes
+  SINGLE    // single node run
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL   // some nodes succeeded, some failed
+  CANCELLED
+}
