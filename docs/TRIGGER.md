@@ -6,8 +6,11 @@
 # Initialize Trigger.dev in the project
 npx trigger.dev@latest init
 
-# Dev server (runs alongside Next.js)
-npx trigger.dev@latest dev
+# Dev server only (optional if using npm run dev)
+npx trigger.dev@4.4.3 dev --env-file .env.local
+
+# Recommended: run Next.js + Trigger worker together
+npm run dev
 
 # Deploy tasks
 npx trigger.dev@latest deploy
@@ -17,7 +20,7 @@ npx trigger.dev@latest deploy
 
 ## trigger.config.ts
 ```typescript
-import { defineConfig } from '@trigger.dev/sdk/v3'
+import { defineConfig } from '@trigger.dev/sdk'
 
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_ID!,
@@ -50,7 +53,7 @@ DATABASE_URL=                   # Neon PostgreSQL
 
 ```typescript
 // src/trigger/llm-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { GoogleGenerativeAI, Part } from '@google/generative-ai'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
@@ -141,7 +144,7 @@ export const llmTask = task({
 
 ```typescript
 // src/trigger/crop-image-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { z } from 'zod'
 import { $ } from 'execa'
 import * as fs from 'fs/promises'
@@ -242,7 +245,7 @@ export const cropImageTask = task({
 
 ```typescript
 // src/trigger/extract-frame-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { z } from 'zod'
 import { $ } from 'execa'
 import * as fs from 'fs/promises'
@@ -377,7 +380,7 @@ async function uploadToTransloadit(
 Add to `trigger.config.ts` to install FFmpeg in the Trigger.dev worker:
 
 ```typescript
-import { defineConfig } from '@trigger.dev/sdk/v3'
+import { defineConfig } from '@trigger.dev/sdk'
 import { ffmpeg } from '@trigger.dev/build/extensions/core'
 
 export default defineConfig({
@@ -409,7 +412,7 @@ npm install @trigger.dev/build
 
 ```typescript
 // src/app/api/runs/route.ts (POST)
-import { tasks } from '@trigger.dev/sdk/v3'
+import { tasks } from '@trigger.dev/sdk'
 import { llmTask } from '@/trigger/llm-task'
 
 // Trigger a single task:
@@ -454,3 +457,4 @@ POST /api/runs
 **IMPORTANT:** The execution engine runs inside the API route (server-side).
 It uses `triggerAndWait` to block until each task completes before moving to the next wave.
 Individual waves run concurrently with `Promise.all`.
+

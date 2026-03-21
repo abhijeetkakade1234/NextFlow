@@ -24,7 +24,7 @@ export function createNode(
     },
     llmNode: {
       label: 'Run LLM',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       manualSystemPrompt: '',
       manualUserMessage: '',
       result: null,

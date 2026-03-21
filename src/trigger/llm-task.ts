@@ -1,8 +1,9 @@
 // src/trigger/llm-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { GoogleGenerativeAI, Part } from '@google/generative-ai'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../lib/prisma'
+import { requireEnv } from '../lib/env'
 
 const LLMInputSchema = z.object({
   nodeResultId: z.string(),
@@ -11,6 +12,17 @@ const LLMInputSchema = z.object({
   userMessage:  z.string(),
   imageUrls:    z.array(z.string()).optional(),
 })
+
+const LEGACY_MODEL_ALIASES: Record<string, string> = {
+  'gemini-1.5-flash': 'gemini-2.5-flash',
+  'gemini-1.5-pro': 'gemini-2.5-pro',
+  'gemini-1.5-flash-8b': 'gemini-2.5-flash-lite',
+  'gemini-2.0-flash-exp': 'gemini-2.0-flash',
+}
+
+function resolveModel(model: string): string {
+  return LEGACY_MODEL_ALIASES[model] ?? model
+}
 
 export const llmTask = task({
   id: 'llm-task',
@@ -21,9 +33,10 @@ export const llmTask = task({
     const startTime = Date.now()
 
     try {
-      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!)
+      const genAI = new GoogleGenerativeAI(requireEnv('GOOGLE_GENERATIVE_AI_API_KEY'))
+      const resolvedModel = resolveModel(model)
       const geminiModel = genAI.getGenerativeModel({
-        model,
+        model: resolvedModel,
         ...(systemPrompt && {
           systemInstruction: { role: 'system', parts: [{ text: systemPrompt }] }
         }),
@@ -43,19 +56,20 @@ export const llmTask = task({
 
       const result = await geminiModel.generateContent(parts)
       const text = result.response.text()
+      const usageMetadata = (result.response as any).usageMetadata ?? null
 
       await prisma.nodeResult.update({
         where: { id: nodeResultId },
         data: {
           status: 'SUCCESS',
-          output: JSON.stringify({ text }),
+          output: JSON.stringify({ text, model: resolvedModel, usageMetadata }),
           completedAt: new Date(),
           durationMs: Date.now() - startTime,
           triggerRunId: ctx.run.id,
         },
       })
 
-      return { success: true, text }
+      return { success: true, text, usageMetadata }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await prisma.nodeResult.update({

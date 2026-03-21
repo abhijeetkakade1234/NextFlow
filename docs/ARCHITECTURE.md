@@ -100,7 +100,7 @@ nextflow/
     "@clerk/nextjs": "^5.2.0",
     "@prisma/client": "^5.16.0",
     "@google/generative-ai": "^0.15.0",
-    "@trigger.dev/sdk": "^3.1.0",
+    "@trigger.dev/sdk": "^4.4.3",
     "@xyflow/react": "^12.0.0",
     "zustand": "^4.5.0",
     "zod": "^3.23.0",
@@ -116,7 +116,6 @@ nextflow/
     "date-fns": "^3.6.0"
   },
   "devDependencies": {
-    "@trigger.dev/cli": "^3.1.0",
     "prisma": "^5.16.0",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -131,7 +130,7 @@ nextflow/
 ```bash
 npm install next@14.2.5 @clerk/nextjs @prisma/client @google/generative-ai @trigger.dev/sdk @xyflow/react zustand zod lucide-react clsx tailwind-merge uppy @uppy/transloadit @uppy/core @uppy/dashboard immer @tanstack/react-query date-fns
 
-npm install -D @trigger.dev/cli prisma @types/node @types/react typescript tailwindcss autoprefixer
+npm install -D prisma @types/node @types/react typescript tailwindcss autoprefixer
 ```
 
 ---
@@ -163,7 +162,7 @@ export const config = {
 ## trigger.config.ts
 
 ```typescript
-import { defineConfig } from '@trigger.dev/sdk/v3'
+import { defineConfig } from '@trigger.dev/sdk'
 
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_ID!,
@@ -510,3 +509,5 @@ export async function executeWorkflow(
 }
 ```
 Always use `@/` imports, never relative `../../` imports.
+
+

@@ -91,7 +91,6 @@ npm install \
 
 npm install -D \
   @trigger.dev/build \
-  @trigger.dev/cli \
   prisma \
   @types/node \
   @types/react
@@ -150,13 +149,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-### 8. Start dev servers (TWO terminals needed)
+### 8. Start dev servers
 ```bash
-# Terminal 1: Next.js
 npm run dev
-
-# Terminal 2: Trigger.dev worker
-npx trigger.dev@latest dev
 ```
 
 ---
@@ -252,3 +247,4 @@ npx trigger.dev@latest deploy
 # 4. Run Prisma migration on production DB
 npx prisma db push  # or migrate deploy for production
 ```
+

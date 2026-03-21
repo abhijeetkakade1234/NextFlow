@@ -1,6 +1,6 @@
 // src/app/(dashboard)/workflows/[id]/WorkflowEditorClient.tsx
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { useExecutionStore } from '@/store/execution-store'
 import { WorkflowCanvas } from '@/components/canvas/WorkflowCanvas'
@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 import type { Edge, Viewport } from '@xyflow/react'
 import type { AppNode } from '@/types/nodes'
+import type { NodeResult } from '@/types/workflow'
 
 type Props = {
   workflowId: string
@@ -24,10 +25,14 @@ export function WorkflowEditorClient({
 }: Props) {
   const {
     workflowName, isSaving, isDirty,
-    setWorkflowId, setWorkflowName, loadWorkflow,
+    setWorkflowId, setWorkflowName, loadWorkflow, updateNodeData,
     nodes, edges,
   } = useWorkflowStore()
-  const { isRunning, startRun, resetExecution } = useExecutionStore()
+  const {
+    isRunning, startRun, resetExecution,
+    setNodeStatus, setNodeOutput, setNodeError, completeRun,
+  } = useExecutionStore()
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Initialize store on mount
   useEffect(() => {
@@ -38,6 +43,98 @@ export function WorkflowEditorClient({
 
   // Auto-save hook
   useAutoSave()
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current)
+      }
+    }
+  }, [])
+
+  const applyNodeResult = (nodeResult: NodeResult) => {
+    if (nodeResult.status === 'RUNNING') {
+      setNodeStatus(nodeResult.nodeId, 'running')
+      updateNodeData(nodeResult.nodeId, { isRunning: true, error: null } as any)
+      return
+    }
+
+    if (nodeResult.status === 'FAILED') {
+      setNodeStatus(nodeResult.nodeId, 'error')
+      setNodeError(nodeResult.nodeId, nodeResult.error ?? 'Run failed')
+      updateNodeData(nodeResult.nodeId, {
+        isRunning: false,
+        error: nodeResult.error ?? 'Run failed',
+      } as any)
+      return
+    }
+
+    // SUCCESS
+    let parsedOutput: unknown = nodeResult.output
+    if (typeof parsedOutput === 'string') {
+      try {
+        parsedOutput = JSON.parse(parsedOutput)
+      } catch {
+        // leave as raw string
+      }
+    }
+
+    const textOutput =
+      typeof parsedOutput === 'object' && parsedOutput !== null && 'text' in parsedOutput
+        ? String((parsedOutput as Record<string, unknown>).text ?? '')
+        : ''
+
+    const urlOutput =
+      typeof parsedOutput === 'object' && parsedOutput !== null && 'url' in parsedOutput
+        ? String((parsedOutput as Record<string, unknown>).url ?? '')
+        : ''
+
+    if (textOutput) {
+      setNodeOutput(nodeResult.nodeId, textOutput)
+      updateNodeData(nodeResult.nodeId, { isRunning: false, error: null, result: textOutput } as any)
+    } else if (urlOutput) {
+      setNodeOutput(nodeResult.nodeId, urlOutput)
+      updateNodeData(nodeResult.nodeId, { isRunning: false, error: null, result: urlOutput } as any)
+    } else {
+      setNodeStatus(nodeResult.nodeId, 'success')
+      updateNodeData(nodeResult.nodeId, { isRunning: false, error: null } as any)
+    }
+  }
+
+  const startRunPolling = (runId: string) => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/runs/${runId}`)
+        if (!res.ok) return
+
+        const data = await res.json()
+        const run = data.run as { status: string; nodeResults: NodeResult[] }
+        if (!run) return
+
+        for (const nodeResult of run.nodeResults) {
+          applyNodeResult(nodeResult)
+        }
+
+        if (run.status !== 'RUNNING') {
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current)
+            pollTimerRef.current = null
+          }
+          completeRun()
+        }
+      } catch {
+        // Keep polling; transient fetch errors should not break run UI.
+      }
+    }
+
+    poll()
+    pollTimerRef.current = setInterval(poll, 1200)
+  }
 
   const handleRunAll = async () => {
     resetExecution()
@@ -51,6 +148,7 @@ export function WorkflowEditorClient({
       const data = await res.json()
       if (res.ok) {
         startRun(data.runId, allNodeIds)
+        startRunPolling(data.runId)
       }
     } catch (err) {
       console.error('Run failed', err)

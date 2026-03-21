@@ -17,8 +17,6 @@ async function createWorkflowAction() {
   redirect(`/workflows/${wf.id}`)
 }
 
-type WorkflowSummary = Awaited<ReturnType<typeof prisma.workflow.findMany>>[number]
-
 export default async function WorkflowsPage() {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
@@ -80,7 +78,7 @@ export default async function WorkflowsPage() {
           </form>
 
           {/* Existing Workflows */}
-          {workflows.map((wf: WorkflowSummary) => (
+          {workflows.map((wf) => (
             <Link
               key={wf.id}
               href={`/workflows/${wf.id}`}

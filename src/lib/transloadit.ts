@@ -1,5 +1,6 @@
 // src/lib/transloadit.ts
 import crypto from 'crypto'
+import { requireEnv } from './env'
 
 export function createTransloaditParams(fileType: 'image' | 'video') {
   const steps =
@@ -22,7 +23,7 @@ export function createTransloaditParams(fileType: 'image' | 'video') {
 
   const params = {
     auth: {
-      key: process.env.TRANSLOADIT_KEY!,
+      key: requireEnv('TRANSLOADIT_KEY'),
       expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     },
     steps,
@@ -30,7 +31,7 @@ export function createTransloaditParams(fileType: 'image' | 'video') {
 
   const paramsString = JSON.stringify(params)
   const signature = crypto
-    .createHmac('sha384', process.env.TRANSLOADIT_SECRET!)
+    .createHmac('sha384', requireEnv('TRANSLOADIT_SECRET'))
     .update(paramsString)
     .digest('hex')
 

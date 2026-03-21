@@ -1,12 +1,13 @@
 // src/trigger/extract-frame-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { z } from 'zod'
 import { $ } from 'execa'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { Transloadit, type CreateAssemblyOptions } from 'transloadit'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../lib/prisma'
+import { requireEnv } from '../lib/env'
 
 const ExtractFrameInputSchema = z.object({
   nodeResultId: z.string(),
@@ -27,8 +28,8 @@ async function resolveTimestamp(videoPath: string, timestamp: string): Promise<n
 
 async function uploadToTransloadit(filePath: string): Promise<string> {
   const client = new Transloadit({
-    authKey: process.env.TRANSLOADIT_KEY!,
-    authSecret: process.env.TRANSLOADIT_SECRET!,
+    authKey: requireEnv('TRANSLOADIT_KEY'),
+    authSecret: requireEnv('TRANSLOADIT_SECRET'),
   })
 
   const options: CreateAssemblyOptions = {

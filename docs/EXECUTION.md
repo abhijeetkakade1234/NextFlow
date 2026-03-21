@@ -4,7 +4,7 @@
 
 ```typescript
 // src/lib/execution-engine.ts
-import { tasks } from '@trigger.dev/sdk/v3'
+import { tasks } from '@trigger.dev/sdk'
 import { llmTask } from '@/trigger/llm-task'
 import { cropImageTask } from '@/trigger/crop-image-task'
 import { extractFrameTask } from '@/trigger/extract-frame-task'
@@ -502,3 +502,4 @@ export function RunHistoryDetail({ run }: { run: any }) {
   )
 }
 ```
+

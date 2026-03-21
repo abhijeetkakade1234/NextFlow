@@ -12,7 +12,7 @@ The core infrastructure and building blocks are fully implemented and verified w
 - **Phase 3: State Management** — Zustand store with Undo/Redo (zundo), Immer for complex state updates, and DAG-based connection validation.
 - **Phase 4-5: Persistence** — Prisma ORM (Neon PostgreSQL), Workflow CRUD API, Auto-save (debounced 1.5s), JSON Export.
 - **Phase 6: File Handling** — Transloadit integration for signed image/video uploads with node previews.
-- **Phase 7: Execution Core** — Trigger.dev v3 background tasks for LLM (Gemini), Image Cropping (FFmpeg), and Video Frame Extraction (FFmpeg).
+- **Phase 7: Execution Core** — Trigger.dev v4 background tasks for LLM (Gemini), Image Cropping (FFmpeg), and Video Frame Extraction (FFmpeg).
 
 ### 🛠️ What's Remaining (Phase 8-10)
 - **Phase 8: Run History** — Populating the Right Sidebar with previous execution logs and results.
@@ -85,14 +85,10 @@ TRANSLOADIT_SECRET="..."
    npx prisma migrate dev --name init
    ```
 
-3. **Start Trigger.dev Worker:**
-   ```bash
-   npx trigger.dev@latest dev
-   ```
-
-4. **Start Next.js App:**
+3. **Start Next.js + Trigger.dev together:**
    ```bash
    npm run dev
    ```
 
 Visit `http://localhost:3000` and sign in to start building!
+

@@ -3,7 +3,8 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { CreateRunSchema } from '@/schemas/run.schema'
-import { executeWorkflow } from '@/lib/execution-engine'
+import { tasks } from '@trigger.dev/sdk'
+import { Prisma } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
             nodeType: node?.type ?? 'unknown',
             nodeLabel: node?.data?.label ?? nId,
             status: 'RUNNING',
-            inputs: null,
+            inputs: Prisma.JsonNull,
           }
         }),
       },
@@ -57,15 +58,18 @@ export async function POST(req: NextRequest) {
     include: { nodeResults: true },
   })
 
-  // Start execution async — don't await
-  executeWorkflow(allNodes, allEdges, targetNodeIds, run.id, run.nodeResults)
-    .catch(err => {
-      console.error('Execution failed:', err)
-      prisma.workflowRun.update({
-        where: { id: run.id },
-        data: { status: 'FAILED', completedAt: new Date() },
-      })
+// Start execution via Trigger.dev Master Task
+  tasks.trigger<any>('workflow-execution-task', {
+    workflowId,
+    runId: run.id,
+    targetNodeIds,
+  }).catch((err: unknown) => {
+    console.error('Failed to trigger execution task:', err)
+    prisma.workflowRun.update({
+      where: { id: run.id },
+      data: { status: 'FAILED', completedAt: new Date() },
     })
+  })
 
   return NextResponse.json({ runId: run.id }, { status: 201 })
 }

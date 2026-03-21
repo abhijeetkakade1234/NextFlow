@@ -82,16 +82,16 @@ export type ExtractFrameFlowNode = Node<ExtractFrameNodeData>
 // ─── Gemini Models ──────────────────────────────────────
 
 export type GeminiModel =
-  | 'gemini-1.5-flash'
-  | 'gemini-1.5-pro'
-  | 'gemini-2.0-flash-exp'
-  | 'gemini-1.5-flash-8b'
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-pro'
+  | 'gemini-2.0-flash'
+  | 'gemini-2.5-flash-lite'
 
 export const GEMINI_MODELS: { value: GeminiModel; label: string }[] = [
-  { value: 'gemini-1.5-flash',     label: 'Gemini 1.5 Flash (fast)' },
-  { value: 'gemini-1.5-pro',       label: 'Gemini 1.5 Pro (smart)' },
-  { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (latest)' },
-  { value: 'gemini-1.5-flash-8b',  label: 'Gemini 1.5 Flash 8B (cheapest)' },
+  { value: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash (recommended)' },
+  { value: 'gemini-2.5-pro',        label: 'Gemini 2.5 Pro (best quality)' },
+  { value: 'gemini-2.0-flash',      label: 'Gemini 2.0 Flash (stable)' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (cheapest)' },
 ]
 
 // ─── Handle type constants ──────────────────────────────
