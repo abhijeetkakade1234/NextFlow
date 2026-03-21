@@ -1,6 +1,6 @@
 // src/app/(dashboard)/workflows/[id]/WorkflowEditorClient.tsx
 'use client'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { useExecutionStore } from '@/store/execution-store'
 import { WorkflowCanvas } from '@/components/canvas/WorkflowCanvas'
@@ -26,7 +26,7 @@ export function WorkflowEditorClient({
 }: Props) {
   const {
     workflowName, isSaving, isDirty,
-    setWorkflowId, setWorkflowName, loadWorkflow, updateNodeData,
+    setWorkflowId, setWorkflowName, setIsSaving, loadWorkflow, updateNodeData,
     nodes, edges,
   } = useWorkflowStore()
   const {
@@ -34,12 +34,14 @@ export function WorkflowEditorClient({
     setNodeStatus, setNodeOutput, setNodeError, completeRun,
   } = useExecutionStore()
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const lastPersistedNameRef = useRef(initialName)
 
   // Initialize store on mount
   useEffect(() => {
     setWorkflowId(workflowId)
     setWorkflowName(initialName)
     loadWorkflow(initialNodes, initialEdges, initialViewport)
+    lastPersistedNameRef.current = initialName
   }, [workflowId])
 
   // Auto-save hook
@@ -170,6 +172,25 @@ export function WorkflowEditorClient({
     }
   }
 
+  const persistWorkflowName = useCallback(async () => {
+    const normalizedName = workflowName.trim() || 'Untitled Workflow'
+    if (normalizedName === lastPersistedNameRef.current) return
+
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: normalizedName }),
+      })
+      if (!res.ok) return
+      setWorkflowName(normalizedName)
+      lastPersistedNameRef.current = normalizedName
+    } finally {
+      setIsSaving(false)
+    }
+  }, [workflowId, workflowName, setIsSaving, setWorkflowName])
+
   const handleExport = async () => {
     const res = await fetch(`/api/workflows/${workflowId}/export`)
     const blob = await res.blob()
@@ -208,6 +229,13 @@ export function WorkflowEditorClient({
         <input
           value={workflowName}
           onChange={e => setWorkflowName(e.target.value)}
+          onBlur={() => { void persistWorkflowName() }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.currentTarget as HTMLInputElement).blur()
+            }
+          }}
           className="bg-transparent text-sm text-[#e5e5e5] outline-none
                      border-b border-transparent focus:border-[#1f1f1f]
                      min-w-[160px] max-w-[300px]"

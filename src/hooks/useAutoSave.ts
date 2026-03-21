@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 
 export function useAutoSave() {
-  const { workflowId, nodes, edges, viewport, isDirty, setIsSaving, markClean } = useWorkflowStore()
+  const { workflowId, workflowName, nodes, edges, viewport, isDirty, setIsSaving, markClean } = useWorkflowStore()
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
@@ -14,11 +14,17 @@ export function useAutoSave() {
     timerRef.current = setTimeout(async () => {
       setIsSaving(true)
       try {
-        await fetch(`/api/workflows/${workflowId}`, {
+        const res = await fetch(`/api/workflows/${workflowId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nodesJson: nodes, edgesJson: edges, viewport }),
+          body: JSON.stringify({
+            name: workflowName.trim() || 'Untitled Workflow',
+            nodesJson: nodes,
+            edgesJson: edges,
+            viewport,
+          }),
         })
+        if (!res.ok) throw new Error(`Auto-save failed (${res.status})`)
         markClean()
       } catch (err) {
         console.error('Auto-save failed', err)
@@ -28,5 +34,5 @@ export function useAutoSave() {
     }, 1500)
 
     return () => clearTimeout(timerRef.current)
-  }, [nodes, edges, viewport, isDirty, workflowId])
+  }, [workflowName, nodes, edges, viewport, isDirty, workflowId, setIsSaving, markClean])
 }

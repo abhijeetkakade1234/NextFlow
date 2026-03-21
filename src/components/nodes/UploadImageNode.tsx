@@ -1,17 +1,21 @@
 // src/components/nodes/UploadImageNode.tsx
 'use client'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Image as ImageIcon, Upload } from 'lucide-react'
-import { useCallback } from 'react'
+import { Image as ImageIcon, Loader2, Upload } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
 import type { UploadImageFlowNode } from '@/types/nodes'
 
 export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
   const updateNodeData = useWorkflowStore(s => s.updateNodeData)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
 
   const handleUpload = useCallback(async (file: File) => {
     try {
+      setIsUploading(true)
+      setUploadStatus('Preparing upload...')
       updateNodeData(id, { error: null })
 
       const res = await fetch('/api/upload/params', {
@@ -21,7 +25,11 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
       })
       const paramsPayload = await res.json()
       if (!res.ok) {
-        updateNodeData(id, { error: paramsPayload.error ?? 'Failed to prepare upload params' })
+        updateNodeData(id, {
+          error: paramsPayload.error ?? 'Failed to prepare upload params',
+        })
+        setIsUploading(false)
+        setUploadStatus(null)
         return
       }
       const { params, paramsString, signature } = paramsPayload
@@ -43,15 +51,22 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
           (Array.isArray(assembly?.errors) ? assembly.errors.join(', ') : null) ??
           `Transloadit upload failed (${uploadRes.status})`
         updateNodeData(id, { error: uploadError })
+        setIsUploading(false)
+        setUploadStatus(null)
         return
       }
       if (!assembly?.assembly_id) {
-        updateNodeData(id, { error: 'Upload failed: missing assembly id from Transloadit' })
+        updateNodeData(id, {
+          error: 'Upload failed: missing assembly id from Transloadit',
+        })
+        setIsUploading(false)
+        setUploadStatus(null)
         return
       }
 
       let attempts = 0
       const poll = async (): Promise<string | null> => {
+        setUploadStatus(`Processing upload... (${Math.min(attempts + 1, 20)}/20)`)
         const statusRes = await fetch(`https://api2.transloadit.com/assemblies/${assembly.assembly_id}`)
         const status = await statusRes.json()
         if (status.ok === 'ASSEMBLY_COMPLETED') {
@@ -66,13 +81,27 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
 
       const imageUrl = await poll()
       if (imageUrl) {
-        updateNodeData(id, { imageUrl, fileName: file.name, error: null })
+        updateNodeData(id, {
+          imageUrl,
+          fileName: file.name,
+          error: null,
+        })
+        setIsUploading(false)
+        setUploadStatus(null)
       } else {
-        updateNodeData(id, { error: 'Upload polling timed out or assembly did not complete' })
+        updateNodeData(id, {
+          error: 'Upload polling timed out or assembly did not complete',
+        })
+        setIsUploading(false)
+        setUploadStatus(null)
       }
     } catch (err) {
       console.error('Upload failed', err)
-      updateNodeData(id, { error: 'Upload failed. Check console/logs for details.' })
+      updateNodeData(id, {
+        error: 'Upload failed. Check console/logs for details.',
+      })
+      setIsUploading(false)
+      setUploadStatus(null)
     }
   }, [id, updateNodeData])
 
@@ -100,12 +129,22 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
         <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed
                          border-[#1f1f1f] rounded-lg cursor-pointer hover:border-[#7c3aed]
                          transition-colors nodrag">
-          <Upload size={20} className="text-[#6b7280] mb-1" />
-          <span className="text-xs text-[#6b7280]">jpg, jpeg, png, webp, gif</span>
+          {isUploading ? (
+            <>
+              <Loader2 size={20} className="text-[#7c3aed] mb-1 animate-spin" />
+              <span className="text-xs text-[#9ca3af]">{uploadStatus ?? 'Uploading...'}</span>
+            </>
+          ) : (
+            <>
+              <Upload size={20} className="text-[#6b7280] mb-1" />
+              <span className="text-xs text-[#6b7280]">jpg, jpeg, png, webp, gif</span>
+            </>
+          )}
           <input
             type="file"
             accept=".jpg,.jpeg,.png,.webp,.gif"
             className="hidden"
+            disabled={isUploading}
             onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
           />
         </label>
