@@ -44,6 +44,17 @@ async function resolveTimestamp(videoPath: string, timestamp: string): Promise<n
   return seconds
 }
 
+async function getVideoDurationSeconds(videoPath: string): Promise<number> {
+  const ffprobeBin = getBinaryPath('FFPROBE_PATH', 'ffprobe')
+  const result = await execa(ffprobeBin, ['-v', 'quiet', '-print_format', 'json', '-show_format', videoPath])
+  const data = JSON.parse(result.stdout) as { format?: { duration?: string } }
+  const duration = Number(data.format?.duration ?? '0')
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new Error('Could not determine video duration')
+  }
+  return duration
+}
+
 async function uploadToTransloadit(filePath: string): Promise<string> {
   const client = new Transloadit({
     authKey: requireEnv('TRANSLOADIT_KEY'),
@@ -100,6 +111,12 @@ export const extractFrameTask = task({
       await fs.writeFile(inputPath, Buffer.from(buffer))
 
       const seekTime = await resolveTimestamp(inputPath, timestamp)
+      const duration = await getVideoDurationSeconds(inputPath)
+      if (seekTime > duration) {
+        throw new Error(
+          `Timestamp ${seekTime.toFixed(2)}s exceeds video duration ${duration.toFixed(2)}s`
+        )
+      }
       const ffmpegBin = getBinaryPath('FFMPEG_PATH', 'ffmpeg')
       await execa(ffmpegBin, ['-ss', String(seekTime), '-i', inputPath, '-vframes', '1', '-q:v', '2', outputPath])
 
