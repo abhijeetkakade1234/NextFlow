@@ -36,12 +36,12 @@ jobs:
         run: npm run build
         env:
           # Use repo secrets when present; otherwise use safe mocks for CI build validation.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          TRIGGER_SECRET_KEY: ${{ secrets.TRIGGER_SECRET_KEY }}
-          TRIGGER_PROJECT_ID: ${{ secrets.TRIGGER_PROJECT_ID }}
-          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-          TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY }}
-          TRANSLOADIT_SECRET: ${{ secrets.TRANSLOADIT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://mock:mock@localhost:5432/mock' }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://mock:mock@localhost:5432/mock' }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_mock' }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || 'sk_test_mock' }}
+          TRIGGER_SECRET_KEY: ${{ secrets.TRIGGER_SECRET_KEY || 'tr_dev_mock' }}
+          TRIGGER_PROJECT_ID: ${{ secrets.TRIGGER_PROJECT_ID || 'proj_mock' }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY || 'ai_mock' }}
+          TRANSLOADIT_KEY: ${{ secrets.TRANSLOADIT_KEY || 'tl_key_mock' }}
+          TRANSLOADIT_SECRET: ${{ secrets.TRANSLOADIT_SECRET || 'tl_sec_mock' }}
