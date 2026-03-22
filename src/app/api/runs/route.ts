@@ -5,10 +5,23 @@ import { prisma } from '@/lib/prisma'
 import { CreateRunSchema } from '@/schemas/run.schema'
 import { tasks } from '@trigger.dev/sdk'
 import { Prisma } from '@prisma/client'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rateLimit = enforceRateLimit(req, userId, {
+    key: 'runs:create',
+    limit: 20,
+    windowMs: 60_000,
+  })
+  if (!rateLimit.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please retry shortly.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSec) } }
+    )
+  }
 
   const body = await req.json()
   const result = CreateRunSchema.safeParse(body)

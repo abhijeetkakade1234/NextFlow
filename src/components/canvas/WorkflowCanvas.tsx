@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect } from 'react'
 import '@xyflow/react/dist/style.css'
 import { useWorkflowStore } from '@/store/workflow-store'
+import { useUIStore } from '@/store/ui-store'
 import { nodeTypes } from './nodeTypes'
 import { CustomEdge } from './CustomEdge'
 import { KeyboardHandler } from './KeyboardHandler'
@@ -27,6 +28,7 @@ function Canvas({ workflowId }: { workflowId: string }) {
     onNodesChange, onEdgesChange, onConnect,
     addNode, setViewport,
   } = useWorkflowStore()
+  const setSelectedNodeIds = useUIStore(s => s.setSelectedNodeIds)
   const { screenToFlowPosition } = useReactFlow()
 
   // Expose workflowId globally for node run buttons
@@ -47,6 +49,10 @@ function Canvas({ workflowId }: { workflowId: string }) {
     event.dataTransfer.dropEffect = 'move'
   }, [])
 
+  const onSelectionChange = useCallback((params: { nodes: Array<{ id: string }> }) => {
+    setSelectedNodeIds(params.nodes.map(n => n.id))
+  }, [setSelectedNodeIds])
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -56,6 +62,7 @@ function Canvas({ workflowId }: { workflowId: string }) {
       onConnect={onConnect}
       onDrop={onDrop}
       onDragOver={onDragOver}
+      onSelectionChange={onSelectionChange}
       onMoveEnd={(_, viewport) => setViewport(viewport)}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}

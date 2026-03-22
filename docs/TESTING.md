@@ -1,5 +1,20 @@
 # NextFlow Testing Checklist
 
+## Latest Validation Notes
+
+- Status values: `PASS` / `FAIL` / `PENDING`
+- Keep this section updated after each end-to-end test pass.
+- 1. Text -> LLM: `PENDING`
+- 2. LLM manual input: `PENDING`
+- 3. Upload Image -> Crop Image: `PENDING`
+- 4. Upload Video -> Extract Frame: `PENDING`
+- 5. Parallel branch -> LLM merge: `PENDING`
+- 6. Missing required connection failure: `PENDING`
+- 7. Invalid timestamp failure: `PENDING`
+- 8. Re-run consistency: `PENDING`
+- 9. Single-node run: `PENDING`
+- 10. Load/perf sanity: `PENDING`
+
 ## 1. Text -> LLM (baseline)
 - Setup:
   - Add `Text` node with: `Write 2 lines about testing pipelines`
@@ -123,4 +138,3 @@
 - Database tables:
   - `WorkflowRun`
   - `NodeResult`
-

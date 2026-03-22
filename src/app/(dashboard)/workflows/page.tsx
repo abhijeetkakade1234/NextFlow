@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Workflow, Clock, Play } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { ImportWorkflowButton } from './ImportWorkflowButton'
 
 async function createWorkflowAction() {
   'use server'
@@ -48,16 +49,19 @@ export default async function WorkflowsPage() {
               <p className="text-xs text-[#6b7280]">Visual LLM Workflow Builder</p>
             </div>
           </div>
-          <form action={createWorkflowAction}>
-            <button
-              type="submit"
-              className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9]
-                         text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              <Plus size={16} />
-              New Workflow
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            <ImportWorkflowButton />
+            <form action={createWorkflowAction}>
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9]
+                           text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <Plus size={16} />
+                New Workflow
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Workflow Grid */}

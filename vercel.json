@@ -1,0 +1,17 @@
+{
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "DIRECT_URL": "@direct_url",
+    "CLERK_SECRET_KEY": "@clerk_secret_key",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@next_public_clerk_publishable_key",
+    "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "@next_public_clerk_sign_in_url",
+    "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "@next_public_clerk_sign_up_url",
+    "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL": "@next_public_clerk_after_sign_in_url",
+    "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL": "@next_public_clerk_after_sign_up_url",
+    "GOOGLE_GENERATIVE_AI_API_KEY": "@google_generative_ai_api_key",
+    "TRIGGER_SECRET_KEY": "@trigger_secret_key",
+    "TRIGGER_PROJECT_ID": "@trigger_project_id",
+    "TRANSLOADIT_KEY": "@transloadit_key",
+    "TRANSLOADIT_SECRET": "@transloadit_secret"
+  }
+}

@@ -1,57 +1,44 @@
 # NextFlow
 
-NextFlow is a pixel-perfect LLM workflow builder inspired by Krea.ai. It allows users to visually construct, run, and export complex AI workflows using a drag-and-drop canvas.
+NextFlow is a Krea-style visual workflow builder for LLM and media pipelines, built with Next.js App Router, React Flow, Trigger.dev v4, Clerk, Prisma, and Neon.
 
-## 🚀 Status: Phase 0-7 Complete
+## Current Status
 
-The core infrastructure and building blocks are fully implemented and verified with strict TypeScript type safety (React Flow v12).
+Implemented:
+- Krea-like canvas layout with collapsible sidebars
+- 6 node types: Text, Upload Image, Upload Video, Run LLM, Crop Image, Extract Frame
+- Type-safe DAG connections + cycle prevention + undo/redo
+- Workflow persistence (save/load/export/import JSON)
+- Execution scopes: FULL, SINGLE, SELECTED
+- Trigger.dev v4 execution pipeline with parallel DAG wave execution
+- Every node execution routed through Trigger tasks (`text/upload/llm/crop/extract`)
+- Run history panel with list + run detail (node-level status, inputs, outputs/errors, duration, timing offsets)
+- Sample workflow loader (`Product Marketing Kit Generator`)
 
-### ✅ What's Done
-- **Phase 0-1: Foundation** — Next.js 15+ App Router, Tailwind CSS v4, Clerk Authentication, Krea-inspired Dark Theme.
-- **Phase 2: Node UI** — 6 Custom Node types (Text, Upload Image/Video, LLM, Crop, Extract Frame).
-- **Phase 3: State Management** — Zustand store with Undo/Redo (zundo), Immer for complex state updates, and DAG-based connection validation.
-- **Phase 4-5: Persistence** — Prisma ORM (Neon PostgreSQL), Workflow CRUD API, Auto-save (debounced 1.5s), JSON Export.
-- **Phase 6: File Handling** — Transloadit integration for signed image/video uploads with node previews.
-- **Phase 7: Execution Core** — Trigger.dev v4 background tasks for LLM (Gemini), Image Cropping (FFmpeg), and Video Frame Extraction (FFmpeg).
+Still optional/polish:
+- Additional product polish features beyond assignment rubric
 
-### 🛠️ What's Remaining (Phase 8-10)
-- **Phase 8: Run History** — Populating the Right Sidebar with previous execution logs and results.
-- **Phase 9: Real-time UI Updates** — Pushing execution progress (running/success/error) from background tasks back to the canvas nodes via SSE or polling.
-- **Phase 10: Advanced Features** — Workflow templates, node duplication (Ctrl+D), and visual workflow sharing.
+## Stack
 
----
+- Next.js `16.2.1`
+- React `19`
+- TypeScript `strict`
+- Tailwind CSS `v4`
+- React Flow `v12`
+- Clerk `v7`
+- Prisma `v7` + Neon PostgreSQL
+- Trigger.dev `4.4.3`
+- Transloadit
+- Google Generative AI SDK
 
-## 🛠️ Environment Setup
+## Environment Variables
 
-NextFlow requires several external services. Follow these steps to get your `.env.local` ready:
+Create `.env.local` with:
 
-1. **Database:**
-   - Create a project at [Neon.tech](https://neon.tech).
-   - Copy the Pooled connection string to `DATABASE_URL`.
-   - Copy the Direct connection string to `DIRECT_URL`.
-
-2. **Authentication:**
-   - Create an application at [Clerk.com](https://dashboard.clerk.com).
-   - Copy your Publishable Key and Secret Key.
-
-3. **AI (Gemini):**
-   - Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-
-4. **Background Tasks:**
-   - Create a project at [Trigger.dev](https://cloud.trigger.dev).
-   - Get your Development Secret Key and Project ID from Settings → API Keys.
-
-5. **File Uploads:**
-   - Create an account at [Transloadit.com](https://transloadit.com).
-   - Get your API Key and Secret from the credentials page.
-
-### `.env.local` Template
 ```bash
-# Database (Neon)
 DATABASE_URL="postgres://..."
 DIRECT_URL="postgres://..."
 
-# Clerk Auth
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_..."
 CLERK_SECRET_KEY="sk_..."
 NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
@@ -59,36 +46,43 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL="/workflows"
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL="/workflows"
 
-# Google Gemini
-GOOGLE_GENERATIVE_AI_API_KEY="AIza..."
+GOOGLE_GENERATIVE_AI_API_KEY="..."
 
-# Trigger.dev
 TRIGGER_SECRET_KEY="tr_dev_..."
 TRIGGER_PROJECT_ID="proj_..."
 
-# Transloadit
 TRANSLOADIT_KEY="..."
 TRANSLOADIT_SECRET="..."
+
+# local-only (Windows)
+# FFMPEG_PATH="C:\\...\\ffmpeg.exe"
+# FFPROBE_PATH="C:\\...\\ffprobe.exe"
 ```
 
----
+## Local Dev
 
-## 🏃 Local Development
+```bash
+npm install
+npx prisma db push
+npm run dev
+```
 
-1. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
+App runs at `http://localhost:3000`.
 
-2. **Database Migration:**
-   ```bash
-   npx prisma migrate dev --name init
-   ```
+## Deployment Notes
 
-3. **Start Next.js + Trigger.dev together:**
-   ```bash
-   npm run dev
-   ```
+- `vercel.json` is included for env variable mapping.
+- Use production Trigger key (`tr_prod_...`) and deploy tasks:
 
-Visit `http://localhost:3000` and sign in to start building!
+```bash
+npx trigger.dev@latest deploy
+```
 
+## Production Smoke Checklist
+
+Run these on deployed URL:
+
+1. `Text -> LLM` completes and writes output.
+2. `Upload Image -> Crop Image` returns cropped URL.
+3. `Upload Video -> Extract Frame` returns frame URL.
+4. Parallel merge sample workflow completes and final LLM waits for both branches.

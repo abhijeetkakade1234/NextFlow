@@ -1,17 +1,19 @@
 // src/app/(dashboard)/workflows/[id]/WorkflowEditorClient.tsx
 'use client'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { useExecutionStore } from '@/store/execution-store'
+import { useUIStore } from '@/store/ui-store'
 import { WorkflowCanvas } from '@/components/canvas/WorkflowCanvas'
 import { useAutoSave } from '@/hooks/useAutoSave'
-import { Loader2, Play, Download, ArrowLeft } from 'lucide-react'
+import { Loader2, Play, Download, ArrowLeft, Upload, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { UserButton } from '@clerk/nextjs'
 import type { Edge, Viewport } from '@xyflow/react'
 import type { AppNode } from '@/types/nodes'
 import type { NodeResult } from '@/types/workflow'
 import { RUN_STARTED_EVENT, type RunStartedDetail } from '@/lib/run-events'
+import { SAMPLE_EDGES, SAMPLE_NODES, SAMPLE_VIEWPORT, SAMPLE_WORKFLOW_NAME } from '@/lib/sample-workflow'
 
 type Props = {
   workflowId: string
@@ -26,15 +28,28 @@ export function WorkflowEditorClient({
 }: Props) {
   const {
     workflowName, isSaving, isDirty,
-    setWorkflowId, setWorkflowName, setIsSaving, loadWorkflow, updateNodeData,
+    setWorkflowId, setWorkflowName, setIsSaving, loadWorkflow, updateNodeData, markClean,
     nodes, edges,
   } = useWorkflowStore()
+  const { selectedNodeIds, setSelectedNodeIds } = useUIStore()
   const {
     isRunning, startRun, resetExecution,
     setNodeStatus, setNodeOutput, setNodeError, completeRun,
   } = useExecutionStore()
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const importFileInputRef = useRef<HTMLInputElement | null>(null)
   const lastPersistedNameRef = useRef(initialName)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const parseErrorMessage = async (res: Response, fallback: string): Promise<string> => {
+    const retryAfter = res.headers.get('Retry-After')
+    const retryHint = retryAfter ? ` Retry in ~${retryAfter}s.` : ''
+    const payload = await res.json().catch(() => null)
+    if (payload?.error && typeof payload.error === 'string') {
+      return `${payload.error}${retryHint}`
+    }
+    return `${fallback}${retryHint}`
+  }
 
   // Initialize store on mount
   useEffect(() => {
@@ -42,10 +57,13 @@ export function WorkflowEditorClient({
     setWorkflowName(initialName)
     loadWorkflow(initialNodes, initialEdges, initialViewport)
     lastPersistedNameRef.current = initialName
+    setSelectedNodeIds([])
   }, [workflowId])
 
   // Auto-save hook
-  useAutoSave()
+  useAutoSave({
+    onError: (message) => setNotice(message),
+  })
 
   useEffect(() => {
     return () => {
@@ -166,9 +184,44 @@ export function WorkflowEditorClient({
       if (res.ok) {
         startRun(data.runId, allNodeIds)
         startRunPolling(data.runId)
+      } else {
+        const retryHint = res.headers.get('Retry-After')
+        setNotice(
+          `${data?.error ?? `Run failed (${res.status})`}${retryHint ? ` Retry in ~${retryHint}s.` : ''}`
+        )
       }
     } catch (err) {
       console.error('Run failed', err)
+      setNotice('Run failed. Please try again.')
+    }
+  }
+
+  const handleRunSelected = async () => {
+    if (selectedNodeIds.length === 0) return
+    resetExecution()
+    try {
+      const res = await fetch('/api/runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId,
+          scope: 'SELECTED',
+          nodeIds: selectedNodeIds,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        startRun(data.runId, selectedNodeIds)
+        startRunPolling(data.runId)
+      } else {
+        const retryHint = res.headers.get('Retry-After')
+        setNotice(
+          `${data?.error ?? `Selected run failed (${res.status})`}${retryHint ? ` Retry in ~${retryHint}s.` : ''}`
+        )
+      }
+    } catch (err) {
+      console.error('Selected run failed', err)
+      setNotice('Selected run failed. Please try again.')
     }
   }
 
@@ -183,7 +236,10 @@ export function WorkflowEditorClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: normalizedName }),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        setNotice(await parseErrorMessage(res, `Failed to rename workflow (${res.status}).`))
+        return
+      }
       setWorkflowName(normalizedName)
       lastPersistedNameRef.current = normalizedName
     } finally {
@@ -200,6 +256,58 @@ export function WorkflowEditorClient({
     a.download = `${workflowName}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const saveWorkflowSnapshot = useCallback(async (
+    nextName: string,
+    nextNodes: AppNode[],
+    nextEdges: Edge[],
+    nextViewport?: Viewport
+  ) => {
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: nextName,
+          nodesJson: nextNodes,
+          edgesJson: nextEdges,
+          viewport: nextViewport,
+        }),
+      })
+      if (!res.ok) throw new Error(await parseErrorMessage(res, `Failed to save workflow snapshot (${res.status}).`))
+      markClean()
+      lastPersistedNameRef.current = nextName
+    } finally {
+      setIsSaving(false)
+    }
+  }, [workflowId, setIsSaving, markClean])
+
+  const handleLoadSample = async () => {
+    const sampleName = SAMPLE_WORKFLOW_NAME
+    setWorkflowName(sampleName)
+    loadWorkflow(SAMPLE_NODES, SAMPLE_EDGES, SAMPLE_VIEWPORT)
+    await saveWorkflowSnapshot(sampleName, SAMPLE_NODES, SAMPLE_EDGES, SAMPLE_VIEWPORT)
+  }
+
+  const handleImportFile = async (file: File) => {
+    const text = await file.text()
+    const parsed = JSON.parse(text) as {
+      name?: string
+      nodesJson?: AppNode[]
+      edgesJson?: Edge[]
+      viewport?: Viewport
+    }
+
+    const importedName = (parsed.name ?? 'Imported Workflow').trim() || 'Imported Workflow'
+    const importedNodes = Array.isArray(parsed.nodesJson) ? parsed.nodesJson : []
+    const importedEdges = Array.isArray(parsed.edgesJson) ? parsed.edgesJson : []
+    const importedViewport = parsed.viewport
+
+    setWorkflowName(importedName)
+    loadWorkflow(importedNodes, importedEdges, importedViewport)
+    await saveWorkflowSnapshot(importedName, importedNodes, importedEdges, importedViewport)
   }
 
   return (
@@ -252,6 +360,55 @@ export function WorkflowEditorClient({
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleLoadSample}
+            disabled={isRunning}
+            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
+                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Sparkles size={14} />
+            Load Sample
+          </button>
+
+          <button
+            onClick={() => importFileInputRef.current?.click()}
+            disabled={isRunning}
+            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
+                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload size={14} />
+            Import JSON
+          </button>
+          <input
+            ref={importFileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              void handleImportFile(file).catch((error) => {
+                console.error(error)
+                alert('Failed to import workflow JSON.')
+              }).finally(() => {
+                if (importFileInputRef.current) importFileInputRef.current.value = ''
+              })
+            }}
+          />
+
+          <button
+            onClick={handleRunSelected}
+            disabled={isRunning || selectedNodeIds.length === 0}
+            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
+                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Play size={12} />
+            Run Selected ({selectedNodeIds.length})
+          </button>
+
           {/* Run all button */}
           <button
             onClick={handleRunAll}
@@ -276,6 +433,18 @@ export function WorkflowEditorClient({
           <UserButton />
         </div>
       </header>
+
+      {notice && (
+        <div className="mx-4 mt-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300 flex items-start justify-between gap-3">
+          <span className="break-words">{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            className="text-red-300/70 hover:text-red-200 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Canvas */}
       <div className="flex-1 relative overflow-hidden">

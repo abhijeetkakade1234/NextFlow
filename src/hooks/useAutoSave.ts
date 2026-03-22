@@ -3,7 +3,19 @@
 import { useEffect, useRef } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 
-export function useAutoSave() {
+type UseAutoSaveOptions = {
+  onError?: (message: string) => void
+}
+
+function parseRetryAfter(res: Response): string {
+  const retryAfter = res.headers.get('Retry-After')
+  if (!retryAfter) return ''
+  const seconds = Number(retryAfter)
+  if (!Number.isFinite(seconds) || seconds <= 0) return ''
+  return ` Retry in ~${seconds}s.`
+}
+
+export function useAutoSave(options?: UseAutoSaveOptions) {
   const { workflowId, workflowName, nodes, edges, viewport, isDirty, setIsSaving, markClean } = useWorkflowStore()
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -24,10 +36,19 @@ export function useAutoSave() {
             viewport,
           }),
         })
-        if (!res.ok) throw new Error(`Auto-save failed (${res.status})`)
+        if (!res.ok) {
+          const details = await res.json().catch(() => null)
+          const suffix = parseRetryAfter(res)
+          throw new Error(
+            `Auto-save failed (${res.status})${suffix}${details ? ` ${JSON.stringify(details)}` : ''}`.trim()
+          )
+        }
         markClean()
       } catch (err) {
         console.error('Auto-save failed', err)
+        options?.onError?.(
+          err instanceof Error ? err.message : 'Auto-save failed. Please try again.'
+        )
       } finally {
         setIsSaving(false)
       }
