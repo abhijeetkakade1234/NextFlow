@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Build application
+        run: npm run build
+        env:
+          # Mocking environment variables for Build validation
+          DATABASE_URL: postgresql://mock:mock@localhost:5432/mock
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_mock
+          CLERK_SECRET_KEY: sk_test_mock
+          TRIGGER_SECRET_KEY: tr_sk_mock
+          TRIGGER_PROJECT_ID: proj_mock
+          GOOGLE_GENERATIVE_AI_API_KEY: ai_mock
+          TRANSLOADIT_KEY: tl_key_mock
+          TRANSLOADIT_SECRET: tl_sec_mock

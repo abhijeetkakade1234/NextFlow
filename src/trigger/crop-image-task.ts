@@ -9,13 +9,14 @@ import * as os from 'os'
 import { Transloadit, type CreateAssemblyOptions } from 'transloadit'
 import { prisma } from '../lib/prisma'
 import { requireEnv } from '../lib/env'
-
+import { isUrlSafe } from '../lib/ssrf'
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024 // 100MB
 const CropInputSchema = z.object({
-  nodeResultId:  z.string(),
-  imageUrl:      z.string().url(),
-  xPercent:      z.number().min(0).max(100).default(0),
-  yPercent:      z.number().min(0).max(100).default(0),
-  widthPercent:  z.number().min(1).max(100).default(100),
+  nodeResultId: z.string(),
+  imageUrl: z.string().url(),
+  xPercent: z.number().min(0).max(100).default(0),
+  yPercent: z.number().min(0).max(100).default(0),
+  widthPercent: z.number().min(1).max(100).default(100),
   heightPercent: z.number().min(1).max(100).default(100),
 })
 
@@ -41,7 +42,8 @@ async function uploadToTransloadit(filePath: string): Promise<string> {
   }
 
   const result = await client.createAssembly(options)
-  const url = (result.results as Record<string, Array<{ url: string }>>)?.[':original']?.[0]?.url
+  const firstResult = (result.results as Record<string, Array<{ url?: string; ssl_url?: string }>>)?.[':original']?.[0]
+  const url = firstResult?.ssl_url ?? firstResult?.url
   if (!url) throw new Error('No URL in Transloadit response')
   return url
 }
@@ -53,12 +55,27 @@ export const cropImageTask = task({
   run: async (payload: z.infer<typeof CropInputSchema>, { ctx }) => {
     const { nodeResultId, imageUrl, xPercent, yPercent, widthPercent, heightPercent } = payload
     const startTime = Date.now()
+
+    if (!(await isUrlSafe(imageUrl))) {
+      throw new Error('Insecure or invalid URL provided (SSRF Blocked)')
+    }
+
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'crop-'))
 
     try {
       const response = await fetch(imageUrl)
+      const contentLength = response.headers.get('content-length')
+      if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE_BYTES) {
+        throw new Error('Image file is too large (Max 100MB)')
+      }
+
       const buffer = await response.arrayBuffer()
-      const ext = imageUrl.split('.').pop()?.toLowerCase() ?? 'jpg'
+      if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
+        throw new Error('Image file is too large (Max 100MB)')
+      }
+
+      const parsedPath = new URL(imageUrl).pathname
+      const ext = parsedPath.split('.').pop()?.toLowerCase() ?? 'jpg'
       const inputPath = path.join(tmpDir, `input.${ext}`)
       const outputPath = path.join(tmpDir, 'output.jpg')
       await fs.writeFile(inputPath, Buffer.from(buffer))

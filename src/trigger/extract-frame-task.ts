@@ -8,11 +8,12 @@ import * as os from 'os'
 import { Transloadit, type CreateAssemblyOptions } from 'transloadit'
 import { prisma } from '../lib/prisma'
 import { requireEnv } from '../lib/env'
-
+import { isUrlSafe } from '../lib/ssrf'
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024 // 100MB
 const ExtractFrameInputSchema = z.object({
   nodeResultId: z.string(),
-  videoUrl:     z.string().url(),
-  timestamp:    z.string().default('0'),
+  videoUrl: z.string().url(),
+  timestamp: z.string().default('0'),
 })
 
 function getBinaryPath(envName: 'FFMPEG_PATH' | 'FFPROBE_PATH', fallback: string): string {
@@ -60,7 +61,8 @@ async function uploadToTransloadit(filePath: string): Promise<string> {
   }
 
   const result = await client.createAssembly(options)
-  const url = (result.results as Record<string, Array<{ url: string }>>)?.[':original']?.[0]?.url
+  const firstResult = (result.results as Record<string, Array<{ url?: string; ssl_url?: string }>>)?.[':original']?.[0]
+  const url = firstResult?.ssl_url ?? firstResult?.url
   if (!url) throw new Error('No URL in Transloadit response')
   return url
 }
@@ -72,12 +74,27 @@ export const extractFrameTask = task({
   run: async (payload: z.infer<typeof ExtractFrameInputSchema>, { ctx }) => {
     const { nodeResultId, videoUrl, timestamp } = payload
     const startTime = Date.now()
+
+    if (!(await isUrlSafe(videoUrl))) {
+      throw new Error('Insecure or invalid URL provided (SSRF Blocked)')
+    }
+
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'frame-'))
 
     try {
       const response = await fetch(videoUrl)
+      const contentLength = response.headers.get('content-length')
+      if (contentLength && parseInt(contentLength, 10) > MAX_FILE_SIZE_BYTES) {
+        throw new Error('Video file is too large (Max 100MB)')
+      }
+
       const buffer = await response.arrayBuffer()
-      const ext = videoUrl.split('.').pop()?.toLowerCase() ?? 'mp4'
+      if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
+        throw new Error('Video file is too large (Max 100MB)')
+      }
+
+      const parsedPath = new URL(videoUrl).pathname
+      const ext = parsedPath.split('.').pop()?.toLowerCase() ?? 'mp4'
       const inputPath = path.join(tmpDir, `input.${ext}`)
       const outputPath = path.join(tmpDir, 'frame.jpg')
       await fs.writeFile(inputPath, Buffer.from(buffer))

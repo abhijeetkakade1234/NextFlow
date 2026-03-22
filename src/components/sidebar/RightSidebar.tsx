@@ -6,7 +6,7 @@ import { ChevronRight, ChevronLeft, History, Loader2, ArrowLeft } from 'lucide-r
 import { useUIStore } from '@/store/ui-store'
 import { cn } from '@/lib/utils'
 import type { NodeResult, WorkflowRun } from '@/types/workflow'
-import { RUN_STARTED_EVENT } from '@/lib/run-events'
+import { RUN_HISTORY_REFRESH_EVENT, RUN_STARTED_EVENT } from '@/lib/run-events'
 
 function getWorkflowIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/workflows\/([^/]+)\/?$/)
@@ -117,11 +117,13 @@ export function RightSidebar() {
 
     void fetchRuns()
     window.addEventListener(RUN_STARTED_EVENT, onRunStarted)
+    window.addEventListener(RUN_HISTORY_REFRESH_EVENT, onRunStarted)
 
     return () => {
       active = false
       if (timer) clearInterval(timer)
       window.removeEventListener(RUN_STARTED_EVENT, onRunStarted)
+      window.removeEventListener(RUN_HISTORY_REFRESH_EVENT, onRunStarted)
     }
   }, [workflowId, setSelectedRunId])
 

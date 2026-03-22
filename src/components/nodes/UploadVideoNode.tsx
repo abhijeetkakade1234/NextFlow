@@ -12,6 +12,21 @@ export function UploadVideoNode({ id, data }: NodeProps<UploadVideoFlowNode>) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
 
+  const normalizeUrl = (value: string): string => {
+    if (value.startsWith('//')) return `https:${value}`
+    if (value.startsWith('http://')) return value.replace('http://', 'https://')
+    return value
+  }
+
+  const extractResultUrl = (resultItem: Record<string, unknown> | undefined): string | null => {
+    if (!resultItem) return null
+    const ssl = resultItem.ssl_url
+    if (typeof ssl === 'string' && ssl.length > 0) return normalizeUrl(ssl)
+    const url = resultItem.url
+    if (typeof url === 'string' && url.length > 0) return normalizeUrl(url)
+    return null
+  }
+
   const handleUpload = useCallback(async (file: File) => {
     try {
       setIsUploading(true)
@@ -70,7 +85,12 @@ export function UploadVideoNode({ id, data }: NodeProps<UploadVideoFlowNode>) {
         const statusRes = await fetch(`https://api2.transloadit.com/assemblies/${assembly.assembly_id}`)
         const status = await statusRes.json()
         if (status.ok === 'ASSEMBLY_COMPLETED') {
-          return status.results?.[':original']?.[0]?.url
+          return (
+            extractResultUrl(status.results?.playable?.[0]) ??
+            extractResultUrl(status.results?.encoded?.[0]) ??
+            extractResultUrl(status.results?.optimized?.[0]) ??
+            extractResultUrl(status.results?.[':original']?.[0])
+          )
         }
         if (attempts++ < 20) {
           await new Promise(r => setTimeout(r, 1000))
@@ -113,6 +133,11 @@ export function UploadVideoNode({ id, data }: NodeProps<UploadVideoFlowNode>) {
             src={data.videoUrl}
             controls
             className="w-full rounded-lg border border-[#1f1f1f] max-h-32"
+            onError={() =>
+              updateNodeData(id, {
+                error: 'Video URL could not be rendered in browser. Try re-uploading the file.',
+              })
+            }
           />
           <button
             onClick={() => updateNodeData(id, { videoUrl: null, fileName: null })}

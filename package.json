@@ -7,7 +7,16 @@
     "dev:next": "next dev",
     "dev:trigger": "npx trigger.dev@4.4.3 dev --env-file .env.local",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{js,jsx,ts,tsx}": [
+      "next lint --fix",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.6",
@@ -23,6 +32,7 @@
     "date-fns": "^4.1.0",
     "execa": "^9.6.1",
     "immer": "^11.1.4",
+    "ipaddr.js": "^2.3.0",
     "lucide-react": "^0.577.0",
     "next": "16.2.1",
     "pg": "^8.20.0",
@@ -45,6 +55,10 @@
     "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
     "dotenv": "^17.3.1",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.8.1",
     "prisma": "^7.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"

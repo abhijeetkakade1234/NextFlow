@@ -79,7 +79,12 @@ export function ExtractFrameNode({ id, data }: NodeProps<ExtractFrameFlowNode>) 
       {data.result && (
         <div className="mb-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={data.result} alt="Extracted frame" className="w-full h-24 object-cover rounded-lg border border-[#1f1f1f]" />
+          <img
+            src={data.result}
+            alt="Extracted frame"
+            className="w-full h-24 object-cover rounded-lg border border-[#1f1f1f]"
+            onError={() => updateNodeData(id, { error: 'Extracted frame URL is not renderable in browser.' })}
+          />
         </div>
       )}
       {data.error && (

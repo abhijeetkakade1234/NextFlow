@@ -12,6 +12,15 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
 
+  const extractResultUrl = (resultItem: Record<string, unknown> | undefined): string | null => {
+    if (!resultItem) return null
+    const ssl = resultItem.ssl_url
+    if (typeof ssl === 'string' && ssl.length > 0) return ssl
+    const url = resultItem.url
+    if (typeof url === 'string' && url.length > 0) return url
+    return null
+  }
+
   const handleUpload = useCallback(async (file: File) => {
     try {
       setIsUploading(true)
@@ -70,7 +79,10 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
         const statusRes = await fetch(`https://api2.transloadit.com/assemblies/${assembly.assembly_id}`)
         const status = await statusRes.json()
         if (status.ok === 'ASSEMBLY_COMPLETED') {
-          return status.results?.optimized?.[0]?.url ?? status.results?.[':original']?.[0]?.url
+          return (
+            extractResultUrl(status.results?.optimized?.[0]) ??
+            extractResultUrl(status.results?.[':original']?.[0])
+          )
         }
         if (attempts++ < 20 && status.ok !== 'REQUEST_ABORTED') {
           await new Promise(r => setTimeout(r, 1000))
@@ -114,6 +126,11 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
             src={data.imageUrl}
             alt={data.fileName ?? 'uploaded'}
             className="w-full h-32 object-cover rounded-lg border border-[#1f1f1f]"
+            onError={() =>
+              updateNodeData(id, {
+                error: 'Image URL could not be rendered in browser. Try re-uploading the file.',
+              })
+            }
           />
           <button
             onClick={() => updateNodeData(id, { imageUrl: null, fileName: null })}

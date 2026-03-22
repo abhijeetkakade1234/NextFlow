@@ -12,7 +12,7 @@ import { UserButton } from '@clerk/nextjs'
 import type { Edge, Viewport } from '@xyflow/react'
 import type { AppNode } from '@/types/nodes'
 import type { NodeResult } from '@/types/workflow'
-import { RUN_STARTED_EVENT, type RunStartedDetail } from '@/lib/run-events'
+import { RUN_STARTED_EVENT, emitRunHistoryRefresh, type RunStartedDetail } from '@/lib/run-events'
 import { SAMPLE_EDGES, SAMPLE_NODES, SAMPLE_VIEWPORT, SAMPLE_WORKFLOW_NAME } from '@/lib/sample-workflow'
 
 type Props = {
@@ -184,6 +184,7 @@ export function WorkflowEditorClient({
       if (res.ok) {
         startRun(data.runId, allNodeIds)
         startRunPolling(data.runId)
+        emitRunHistoryRefresh()
       } else {
         const retryHint = res.headers.get('Retry-After')
         setNotice(
@@ -213,6 +214,7 @@ export function WorkflowEditorClient({
       if (res.ok) {
         startRun(data.runId, selectedNodeIds)
         startRunPolling(data.runId)
+        emitRunHistoryRefresh()
       } else {
         const retryHint = res.headers.get('Retry-After')
         setNotice(
