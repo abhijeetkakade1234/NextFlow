@@ -7,12 +7,17 @@ loadEnv({ path: ".env.local" });
 loadEnv(); // fallback to .env if present
 
 const triggerProjectId = process.env.TRIGGER_PROJECT_ID;
-if (!triggerProjectId) {
-  throw new Error("Missing required environment variable: TRIGGER_PROJECT_ID");
+const resolvedProjectId =
+  triggerProjectId || process.env.TRIGGER_PROJECT_REF;
+
+if (!resolvedProjectId) {
+  throw new Error(
+    "Missing Trigger project ref. Set TRIGGER_PROJECT_ID (or TRIGGER_PROJECT_REF) in your environment."
+  );
 }
 
 export default defineConfig({
-  project: triggerProjectId,
+  project: resolvedProjectId,
   maxDuration: 300,
   dirs: ["src/trigger"],
   build: {

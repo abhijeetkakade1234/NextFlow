@@ -21,6 +21,8 @@ GOOGLE_GENERATIVE_AI_API_KEY="..."
 # Trigger.dev
 TRIGGER_SECRET_KEY="tr_dev_..."
 TRIGGER_PROJECT_ID="proj_..."
+# Optional alias used by some CI/deploy setups:
+# TRIGGER_PROJECT_REF="proj_..."
 
 # Transloadit
 TRANSLOADIT_KEY="..."

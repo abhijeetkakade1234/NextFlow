@@ -8,13 +8,13 @@
     "dev:trigger": "npx trigger.dev@4.4.3 dev --env-file .env.local",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
-      "next lint --fix",
+      "eslint --fix",
       "prettier --write"
     ]
   },
@@ -55,6 +55,8 @@
     "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
     "dotenv": "^17.3.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
