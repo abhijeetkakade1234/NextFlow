@@ -82,7 +82,7 @@ export default async function WorkflowsPage() {
           </form>
 
           {/* Existing Workflows */}
-          {workflows.map((wf) => (
+          {workflows.map((wf: (typeof workflows)[number]) => (
             <Link
               key={wf.id}
               href={`/workflows/${wf.id}`}

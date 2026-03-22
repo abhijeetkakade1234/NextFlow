@@ -1,0 +1,37 @@
+name: Deploy Trigger.dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/trigger/**"
+      - "trigger.config.ts"
+      - "package.json"
+      - "package-lock.json"
+
+jobs:
+  deploy-trigger:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy Trigger.dev
+        env:
+          # Supports both docs naming and existing project naming.
+          TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN || secrets.TRIGGER_SECRET_KEY }}
+          TRIGGER_PROJECT_ID: ${{ secrets.TRIGGER_PROJECT_ID || secrets.TRIGGER_PROJECT_REF }}
+          TRIGGER_PROJECT_REF: ${{ secrets.TRIGGER_PROJECT_REF || secrets.TRIGGER_PROJECT_ID }}
+        run: npx trigger.dev@4.4.3 deploy

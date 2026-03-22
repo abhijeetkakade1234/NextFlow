@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc --noEmit",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "postinstall": "prisma generate"
   },
   "lint-staged": {
     "src/**/*.{js,jsx,ts,tsx}": [
