@@ -7,12 +7,14 @@ import { useWorkflowStore } from '@/store/workflow-store'
 import type { CropImageFlowNode } from '@/types/nodes'
 import { emitRunStarted } from '@/lib/run-events'
 
+import { Settings2 } from 'lucide-react'
+
 function NumberInput({
   label, value, onChange, disabled
 }: { label: string; value: number; onChange: (v: number) => void; disabled: boolean }) {
   return (
-    <div>
-      <label className="text-xs text-[#6b7280] mb-1 block">{label}</label>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[10px] font-bold text-krea-muted uppercase tracking-wider ml-1">{label}</label>
       <input
         type="number"
         min={0}
@@ -20,9 +22,9 @@ function NumberInput({
         value={value}
         onChange={e => onChange(Number(e.target.value))}
         disabled={disabled}
-        className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-2 py-1
-                   text-xs text-[#e5e5e5] outline-none focus:border-[#7c3aed] nodrag
-                   disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2
+                   text-sm font-bold text-white outline-none focus:border-krea-accent/50 transition-all nodrag
+                   disabled:opacity-40 disabled:cursor-not-allowed text-center"
       />
     </div>
   )
@@ -42,7 +44,7 @@ export function CropImageNode({ id, data }: NodeProps<CropImageFlowNode>) {
     try {
       const workflowId = (window as any).__currentWorkflowId
       if (!workflowId) {
-        updateNodeData(id, { isRunning: false, error: 'Save the workflow first' })
+        updateNodeData(id, { isRunning: false, error: 'Save workflow first' })
         return
       }
       const res = await fetch('/api/runs', {
@@ -62,72 +64,77 @@ export function CropImageNode({ id, data }: NodeProps<CropImageFlowNode>) {
   }
 
   return (
-    <BaseNode id={id} title="Crop Image" icon={<Crop size={14} />} onRun={handleRun}>
-      {/* Image input handle */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="image_url"
-          style={{ top: '50%' }}
-          data-handletype="image_url"
-          className="!bg-blue-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <div className="ml-4 text-xs text-[#6b7280]">Image: required</div>
-      </div>
-
-      {/* Crop parameters */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="relative">
-          <Handle type="target" position={Position.Left} id="x_percent"
-            style={{ top: '50%' }} data-handletype="number"
-            className="!bg-orange-500 !border-2 !border-[#0a0a0a] !w-2.5 !h-2.5" />
-          <NumberInput label="X %" value={data.xPercent} onChange={v => updateNodeData(id, { xPercent: v })} disabled={xConnected} />
-        </div>
-        <div className="relative">
-          <Handle type="target" position={Position.Left} id="y_percent"
-            style={{ top: '50%' }} data-handletype="number"
-            className="!bg-orange-500 !border-2 !border-[#0a0a0a] !w-2.5 !h-2.5" />
-          <NumberInput label="Y %" value={data.yPercent} onChange={v => updateNodeData(id, { yPercent: v })} disabled={yConnected} />
-        </div>
-        <div className="relative">
-          <Handle type="target" position={Position.Left} id="width_percent"
-            style={{ top: '50%' }} data-handletype="number"
-            className="!bg-orange-500 !border-2 !border-[#0a0a0a] !w-2.5 !h-2.5" />
-          <NumberInput label="Width %" value={data.widthPercent} onChange={v => updateNodeData(id, { widthPercent: v })} disabled={wConnected} />
-        </div>
-        <div className="relative">
-          <Handle type="target" position={Position.Left} id="height_percent"
-            style={{ top: '50%' }} data-handletype="number"
-            className="!bg-orange-500 !border-2 !border-[#0a0a0a] !w-2.5 !h-2.5" />
-          <NumberInput label="Height %" value={data.heightPercent} onChange={v => updateNodeData(id, { heightPercent: v })} disabled={hConnected} />
-        </div>
-      </div>
-
-      {data.result && (
-        <div className="mb-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={data.result}
-            alt="Cropped"
-            className="w-full h-24 object-cover rounded-lg border border-[#1f1f1f]"
-            onError={() => updateNodeData(id, { error: 'Cropped output URL is not renderable in browser.' })}
+    <BaseNode id={id} title="Smart Cropper" icon={<Crop size={18} />} onRun={handleRun}>
+      <div className="flex flex-col gap-5">
+        {/* Image input handle */}
+        <div className="relative bg-white/5 rounded-2xl px-4 py-3 border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Settings2 size={12} className="text-krea-muted" />
+            <span className="text-[10px] font-bold text-white uppercase tracking-widest">Image Source</span>
+          </div>
+          <div className="flex items-center gap-3">
+             <span className="text-[9px] font-bold text-blue-400 uppercase">Input</span>
+             <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+          </div>
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="image_url"
+            data-handletype="image_url"
+            className="!bg-blue-500"
           />
         </div>
-      )}
-      {data.error && (
-        <div className="mb-2 p-2 bg-[#ef4444]/10 rounded-lg border border-[#ef4444]/30">
-          <p className="text-xs text-red-400">{data.error}</p>
+
+        {/* Crop parameters */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="relative group/param">
+            <NumberInput label="Offset X" value={data.xPercent} onChange={v => updateNodeData(id, { xPercent: v })} disabled={xConnected} />
+            <Handle type="target" position={Position.Left} id="x_percent" data-handletype="number" className="opacity-0 group-hover/param:opacity-100 transition-opacity" />
+          </div>
+          <div className="relative group/param">
+            <NumberInput label="Offset Y" value={data.yPercent} onChange={v => updateNodeData(id, { yPercent: v })} disabled={yConnected} />
+            <Handle type="target" position={Position.Left} id="y_percent" data-handletype="number" className="opacity-0 group-hover/param:opacity-100 transition-opacity" />
+          </div>
+          <div className="relative group/param">
+            <NumberInput label="Width %" value={data.widthPercent} onChange={v => updateNodeData(id, { widthPercent: v })} disabled={wConnected} />
+            <Handle type="target" position={Position.Left} id="width_percent" data-handletype="number" className="opacity-0 group-hover/param:opacity-100 transition-opacity" />
+          </div>
+          <div className="relative group/param">
+            <NumberInput label="Height %" value={data.heightPercent} onChange={v => updateNodeData(id, { heightPercent: v })} disabled={hConnected} />
+            <Handle type="target" position={Position.Left} id="height_percent" data-handletype="number" className="opacity-0 group-hover/param:opacity-100 transition-opacity" />
+          </div>
         </div>
-      )}
+
+        {/* Preview */}
+        {data.result ? (
+          <div className="animate-in fade-in zoom-in-95 duration-500">
+            <div className="aspect-video w-full rounded-[24px] overflow-hidden border border-white/10 shadow-xl bg-black/40">
+              <img src={data.result} alt="Cropped" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        ) : (
+          <div className="py-8 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-[24px] opacity-20">
+             <span className="text-[9px] font-bold text-white uppercase tracking-widest">Process output to preview</span>
+          </div>
+        )}
+
+        {data.error && (
+          <div className="bg-krea-error/10 border border-krea-error/20 rounded-2xl p-3">
+            <p className="text-[10px] font-bold text-krea-error uppercase tracking-widest text-center">{data.error}</p>
+          </div>
+        )}
+      </div>
 
       <Handle
         type="source"
         position={Position.Right}
         id="output"
         data-handletype="image_url"
-        className="!bg-blue-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
+        className="!bg-blue-500"
       />
     </BaseNode>
   )
 }
+
+export default CropImageNode
+

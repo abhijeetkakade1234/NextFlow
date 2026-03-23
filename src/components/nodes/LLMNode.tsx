@@ -1,7 +1,7 @@
 // src/components/nodes/LLMNode.tsx
 'use client'
 import { Handle, Position, NodeProps, useEdges } from '@xyflow/react'
-import { Bot } from 'lucide-react'
+import { Bot, Play, Loader2, Edit3, ChevronDown } from 'lucide-react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { GEMINI_MODELS } from '@/types/nodes'
@@ -17,132 +17,179 @@ export function LLMNode({ id, data }: NodeProps<LLMFlowNode>) {
   const imagesConnected = edges.some(e => e.target === id && e.targetHandle === 'images')
 
   const handleRun = async () => {
+    // 1. Update local UI state
     updateNodeData(id, { isRunning: true, error: null, result: null })
+
     try {
       const workflowId = (window as any).__currentWorkflowId
       if (!workflowId) {
-        updateNodeData(id, { isRunning: false, error: 'Save the workflow first to run nodes' })
+        updateNodeData(id, { isRunning: false, error: 'Save workflow first' })
         return
       }
+
+      // 2. IMMEDIATE SAVE: Ensure backend has latest prompt/settings
+      // We manually trigger the save API to bypass the 1.5s debounce of useAutoSave
+      const store = useWorkflowStore.getState()
+      const saveRes = await fetch(`/api/workflows/${workflowId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: store.workflowName,
+          nodesJson: store.nodes,
+          edgesJson: store.edges,
+          viewport: store.viewport,
+        }),
+      })
+
+      if (!saveRes.ok) throw new Error('Failed to save state before run')
+      store.markClean()
+
+      // 3. Trigger Run
       const res = await fetch('/api/runs', {
         method: 'POST',
         body: JSON.stringify({ workflowId, scope: 'SINGLE', nodeId: id }),
         headers: { 'Content-Type': 'application/json' },
       })
+      
       const data = await res.json()
       if (!res.ok) {
         updateNodeData(id, { isRunning: false, error: data.error ?? 'Run failed' })
         return
       }
+
+      // 4. Client-side listener for the execution store will pick this up
       emitRunStarted(data.runId, [id])
-    } catch {
-      updateNodeData(id, { isRunning: false, error: 'Failed to start run' })
+    } catch (err: any) {
+      updateNodeData(id, { isRunning: false, error: err.message || 'Failed to start run' })
     }
   }
 
   return (
     <BaseNode
       id={id}
-      title="Run LLM"
-      icon={<Bot size={14} />}
+      title="Generator"
+      icon={<Bot size={18} />}
       onRun={handleRun}
     >
-      {/* System Prompt */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="system_prompt"
-          style={{ top: '50%' }}
-          data-handletype="text"
-          className="!bg-yellow-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <label className="text-xs text-[#6b7280] mb-1 block ml-4">System Prompt</label>
-        <textarea
-          value={data.manualSystemPrompt}
-          onChange={e => updateNodeData(id, { manualSystemPrompt: e.target.value })}
-          disabled={systemConnected}
-          placeholder={systemConnected ? 'Connected from node...' : 'Optional system prompt...'}
-          rows={2}
-          className="w-full resize-none bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-2
-                     text-xs text-[#e5e5e5] placeholder-[#6b7280] outline-none
-                     focus:border-[#7c3aed] transition-colors nodrag
-                     disabled:opacity-40 disabled:cursor-not-allowed"
-        />
-      </div>
+      <div className="flex flex-col gap-5">
+        {/* Model Selector at top like Krea */}
+        <div className="flex items-center justify-between bg-white/5 rounded-2xl px-4 py-3 ring-1 ring-white/5">
+          <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">Model</span>
+          <select
+            value={data.model}
+            onChange={e => updateNodeData(id, { model: e.target.value as any })}
+            className="bg-transparent text-sm font-bold text-white outline-none cursor-pointer nodrag text-right"
+          >
+            {GEMINI_MODELS.map(m => (
+              <option key={m.value} value={m.value} className="bg-krea-surface-solid">{m.label}</option>
+            ))}
+          </select>
+        </div>
 
-      {/* User Message */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="user_message"
-          style={{ top: '50%' }}
-          data-handletype="text"
-          className="!bg-[#7c3aed] !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <label className="text-xs text-[#6b7280] mb-1 block ml-4">User Message *</label>
-        <textarea
-          value={data.manualUserMessage}
-          onChange={e => updateNodeData(id, { manualUserMessage: e.target.value })}
-          disabled={userConnected}
-          placeholder={userConnected ? 'Connected from node...' : 'Enter message...'}
-          rows={3}
-          className="w-full resize-none bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-2
-                     text-xs text-[#e5e5e5] placeholder-[#6b7280] outline-none
-                     focus:border-[#7c3aed] transition-colors nodrag
-                     disabled:opacity-40 disabled:cursor-not-allowed"
-        />
-      </div>
+        {/* System Prompt Area */}
+        <div className="relative group/system">
+           <div className="flex items-center justify-between mb-2 px-1">
+             <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">System Prompt</span>
+           </div>
+           
+           <div className="relative">
+            <textarea
+              value={data.manualSystemPrompt}
+              onChange={e => updateNodeData(id, { manualSystemPrompt: e.target.value })}
+              disabled={systemConnected}
+              placeholder={systemConnected ? 'Driven by connection...' : 'You are a helpful AI assistant...'}
+              rows={2}
+              className="w-full resize-none bg-white/2 border border-white/5 rounded-2xl p-4
+                         text-[11px] text-white/80 placeholder-white/20 outline-none
+                         focus:border-krea-accent/50 focus:bg-white/5 transition-all nodrag
+                         disabled:opacity-40 disabled:cursor-not-allowed leading-relaxed"
+            />
+            <Handle
+              type="target"
+              position={Position.Left}
+              id="system_prompt"
+              data-handletype="text"
+              className="!bg-yellow-500 !top-1/2"
+            />
+           </div>
+        </div>
 
-      {/* Images handle */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="images"
-          style={{ top: '50%' }}
-          data-handletype="image_url"
-          className="!bg-blue-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <div className="ml-4 text-xs text-[#6b7280]">
-          Images: {imagesConnected ? '✓ Connected' : 'Not connected'}
+        {/* Prompt Area */}
+        <div className="relative group/input">
+           <div className="flex items-center justify-between mb-2 px-1">
+             <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">User Message</span>
+             <Edit3 size={12} className="text-krea-muted opacity-0 group-hover/input:opacity-100 transition-opacity" />
+           </div>
+           
+           <div className="relative">
+            <textarea
+              value={data.manualUserMessage}
+              onChange={e => updateNodeData(id, { manualUserMessage: e.target.value })}
+              disabled={userConnected}
+              placeholder={userConnected ? 'Driven by connection...' : 'A beautiful sunset over a calm ocean...'}
+              rows={4}
+              className="w-full resize-none bg-white/2 border border-white/5 rounded-2xl p-4
+                         text-sm text-white placeholder-white/20 outline-none
+                         focus:border-krea-accent/50 focus:bg-white/5 transition-all nodrag
+                         disabled:opacity-40 disabled:cursor-not-allowed leading-relaxed"
+            />
+            <Handle
+              type="target"
+              position={Position.Left}
+              id="user_message"
+              data-handletype="text"
+              className="!bg-yellow-500"
+            />
+           </div>
+        </div>
+
+        {/* Result Area */}
+        {data.result || data.isRunning ? (
+          <div className="space-y-3 animate-in fade-in zoom-in-95 duration-500">
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">Result</span>
+              <div className="h-px flex-1 bg-white/5" />
+            </div>
+            
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 min-h-[100px] relative overflow-hidden group/result">
+              {data.result ? (
+                <p className="text-sm text-krea-text-secondary whitespace-pre-wrap leading-relaxed">
+                  {data.result}
+                </p>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 opacity-20">
+                  <div className="w-12 h-12 rounded-full border-2 border-dashed border-white mb-3 animate-spin duration-[3s]" />
+                  <span className="text-[10px] font-bold tracking-tighter uppercase">Processing...</span>
+                </div>
+              )}
+              
+              <Handle
+                type="source"
+                position={Position.Right}
+                id="output"
+                data-handletype="text"
+                className="!bg-yellow-500"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="py-12 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-[24px] opacity-20">
+             <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Results will appear here</span>
+          </div>
+        )}
+
+        {/* Settings Collapsible (Simulation) */}
+        <div className="flex items-center justify-between px-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer select-none">
+          <div className="flex items-center gap-2">
+            <ChevronDown size={14} className="text-krea-muted" />
+            <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">Advanced Settings</span>
+          </div>
         </div>
       </div>
 
-      {/* Model Selector */}
-      <select
-        value={data.model}
-        onChange={e => updateNodeData(id, { model: e.target.value as any })}
-        className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg p-2 text-xs
-                   text-[#e5e5e5] outline-none focus:border-[#7c3aed] nodrag mb-2"
-      >
-        {GEMINI_MODELS.map(m => (
-          <option key={m.value} value={m.value}>{m.label}</option>
-        ))}
-      </select>
-
-      {/* Inline Result */}
-      {data.result && (
-        <div className="mt-2 p-2 bg-[#0a0a0a] rounded-lg border border-[#10b981]/30">
-          <p className="text-xs text-[#6b7280] mb-1">Output:</p>
-          <p className="text-xs text-[#e5e5e5] whitespace-pre-wrap max-h-32 overflow-y-auto">{data.result}</p>
-        </div>
-      )}
-
-      {data.error && (
-        <div className="mt-2 p-2 bg-[#ef4444]/10 rounded-lg border border-[#ef4444]/30">
-          <p className="text-xs text-red-400">{data.error}</p>
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="output"
-        data-handletype="text"
-        className="!bg-[#7c3aed] !border-2 !border-[#0a0a0a] !w-3 !h-3"
-      />
+      <Handle type="target" position={Position.Left} id="images" data-handletype="image_url" className="!top-3/4 !bg-blue-500" />
     </BaseNode>
   )
 }
+
+export default LLMNode

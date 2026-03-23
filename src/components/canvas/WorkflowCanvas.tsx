@@ -9,6 +9,10 @@ import {
   EdgeTypes,
   useReactFlow,
   ReactFlowProvider,
+  getIncomers,
+  Connection,
+  Edge,
+  Node,
 } from '@xyflow/react'
 import { useCallback, useEffect } from 'react'
 import '@xyflow/react/dist/style.css'
@@ -53,6 +57,27 @@ function Canvas({ workflowId }: { workflowId: string }) {
     setSelectedNodeIds(params.nodes.map(n => n.id))
   }, [setSelectedNodeIds])
 
+  const isValidConnection = useCallback(
+    (connection: any) => {
+      const { source, target } = connection
+      if (!source || !target || source === target) return false
+
+      const targetBuilder = (node: Node, edges: Edge[]): boolean => {
+        if (node.id === source) return true
+        for (const incomer of getIncomers(node, nodes, edges)) {
+          if (targetBuilder(incomer, edges)) return true
+        }
+        return false
+      }
+
+      const foundNode = nodes.find((n) => n.id === target)
+      if (!foundNode) return false
+
+      return !targetBuilder(foundNode, edges)
+    },
+    [nodes, edges]
+  )
+
   return (
     <ReactFlow
       nodes={nodes}
@@ -60,51 +85,48 @@ function Canvas({ workflowId }: { workflowId: string }) {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      isValidConnection={isValidConnection}
       onDrop={onDrop}
       onDragOver={onDragOver}
       onSelectionChange={onSelectionChange}
       onMoveEnd={(_, viewport) => setViewport(viewport)}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      defaultEdgeOptions={{ type: 'custom', animated: true }}
+      defaultEdgeOptions={{ 
+        type: 'custom', 
+        animated: true,
+        style: { strokeWidth: 2, stroke: 'rgba(255, 255, 255, 0.1)' } 
+      }}
       fitView
       deleteKeyCode={['Delete', 'Backspace']}
-      className="bg-[#0a0a0a]"
+      className="bg-transparent"
     >
       <Background
         variant={BackgroundVariant.Dots}
-        gap={24}
-        size={1.5}
-        color="#1f1f1f"
+        gap={40}
+        size={1}
+        color="rgba(255, 255, 255, 0.05)"
       />
-      <MiniMap
-        nodeColor="#7c3aed"
-        maskColor="rgba(0,0,0,0.7)"
+      <MiniMap 
         position="bottom-right"
-        style={{
-          background: '#111111',
-          border: '1px solid #1f1f1f',
-          borderRadius: '8px',
-        }}
-      />
-      <Controls
-        position="bottom-left"
-        style={{
-          background: '#111111',
-          border: '1px solid #1f1f1f',
-        }}
+        className="!bg-krea-surface !border-krea-border !rounded-xl overflow-hidden shadow-krea"
+        maskColor="rgba(0,0,0,0.4)"
+        nodeColor="#7c3aed"
+        nodeStrokeWidth={3}
+        zoomable
+        pannable
       />
       <KeyboardHandler />
     </ReactFlow>
   )
 }
 
+
 export function WorkflowCanvas({ workflowId }: { workflowId: string }) {
   return (
-    <ReactFlowProvider>
-      <div className="w-full h-full">
-        <Canvas workflowId={workflowId} />
-      </div>
-    </ReactFlowProvider>
+    <div className="w-full h-full">
+      <Canvas workflowId={workflowId} />
+    </div>
   )
 }
+

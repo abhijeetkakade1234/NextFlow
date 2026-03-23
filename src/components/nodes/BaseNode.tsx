@@ -26,53 +26,59 @@ export function BaseNode({
   return (
     <div
       className={cn(
-        'min-w-[280px] rounded-xl border border-[#1f1f1f] bg-[#111111]',
-        'transition-all duration-200 shadow-lg',
-        isRunning && 'node-running border-[#7c3aed]',
+        'min-w-[320px] rounded-[32px] border border-white/5 bg-krea-surface backdrop-blur-md',
+        'transition-all duration-300 shadow-krea group/node ring-1 ring-white/5',
+        isRunning && 'animate-pulse-glow ring-krea-accent ring-2',
         className
       )}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1f1f1f]">
-        <div className="flex items-center gap-2">
-          <span className="text-[#7c3aed]">
-            {isRunning ? <Loader2 size={14} className="animate-spin" /> : icon}
-          </span>
-          <span className="text-sm font-medium text-[#e5e5e5]">{title}</span>
+      {/* Header - Integrated */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-krea-muted uppercase tracking-[0.2em] mb-0.5">Node</span>
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                'text-krea-accent transition-colors',
+                isRunning && 'text-krea-accent'
+              )}>
+                {isRunning ? <Loader2 size={16} className="animate-spin" /> : icon}
+              </div>
+              <span className="text-sm font-bold text-white tracking-tight">{title}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 opacity-0 group-hover/node:opacity-100 transition-opacity">
           {showRunButton && (
             <button
               onClick={onRun}
               disabled={isRunning}
               title="Run this node"
-              className="p-1 rounded hover:bg-[#7c3aed]/20 text-[#6b7280] hover:text-[#7c3aed] transition-colors disabled:opacity-50"
+              className="p-2 rounded-xl bg-white/5 hover:bg-krea-accent hover:text-white text-krea-muted transition-all disabled:opacity-50"
             >
-              <Play size={12} />
+              <Play size={14} fill="currentColor" />
             </button>
           )}
           <button
             onClick={() => deleteElements({ nodes: [{ id }] })}
             title="Delete node"
-            className="p-1 rounded hover:bg-red-500/20 text-[#6b7280] hover:text-red-400 transition-colors"
+            className="p-2 rounded-xl bg-white/5 hover:bg-krea-error hover:text-white text-krea-muted transition-all"
           >
-            <Trash2 size={12} />
+            <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Status bar */}
-      {nodeStatus && nodeStatus !== 'idle' && (
-        <div className={cn(
-          'h-0.5 w-full transition-all',
-          nodeStatus === 'running' && 'bg-[#7c3aed]',
-          nodeStatus === 'success' && 'bg-[#10b981]',
-          nodeStatus === 'error' && 'bg-[#ef4444]',
-        )} />
-      )}
+      {/* Progress line */}
+      <div className="px-6">
+        <div className="h-px w-full bg-white/5" />
+      </div>
 
       {/* Content */}
-      <div className="p-3">{children}</div>
+      <div className="px-6 py-5">{children}</div>
+
+      {/* Error/Status Footer if needed could go here */}
     </div>
   )
 }
+

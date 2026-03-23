@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWorkflowStore } from '@/store/workflow-store'
 import { useExecutionStore } from '@/store/execution-store'
 import { useUIStore } from '@/store/ui-store'
+import { LeftSidebar } from '@/components/sidebar/LeftSidebar'
+import { RightSidebar } from '@/components/sidebar/RightSidebar'
+import { TopBar } from '@/components/layout/TopBar'
+import { BottomToolbar } from '@/components/canvas/BottomToolbar'
 import { WorkflowCanvas } from '@/components/canvas/WorkflowCanvas'
 import { useAutoSave } from '@/hooks/useAutoSave'
-import { Loader2, Play, Download, ArrowLeft, Upload, Sparkles } from 'lucide-react'
-import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
-import type { Edge, Viewport } from '@xyflow/react'
+import { ReactFlowProvider, type Edge, type Viewport } from '@xyflow/react'
 import type { AppNode } from '@/types/nodes'
 import type { NodeResult } from '@/types/workflow'
 import { RUN_STARTED_EVENT, emitRunHistoryRefresh, type RunStartedDetail } from '@/lib/run-events'
@@ -62,7 +63,7 @@ export function WorkflowEditorClient({
 
   // Auto-save hook
   useAutoSave({
-    onError: (message) => setNotice(message),
+    onError: (message: string) => setNotice(message),
   })
 
   useEffect(() => {
@@ -313,145 +314,36 @@ export function WorkflowEditorClient({
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <header className="h-12 border-b border-[#1f1f1f] bg-[#111111]
-                         flex items-center px-4 gap-4 flex-shrink-0">
-        {/* Back button */}
-        <Link
-          href="/workflows"
-          className="p-1.5 rounded-lg text-[#6b7280] hover:text-[#e5e5e5] hover:bg-[#161616] transition-colors"
-        >
-          <ArrowLeft size={16} />
-        </Link>
+    <ReactFlowProvider>
+      <div className="flex w-screen h-screen bg-krea-bg overflow-hidden relative">
+        <LeftSidebar />
+        
+        <main className="flex-1 relative flex flex-col h-full overflow-hidden">
+          <TopBar />
+          
+          <div className="flex-1 relative">
+            {notice && (
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[60] min-w-[320px] rounded-xl border border-red-500/30 bg-krea-surface backdrop-blur-md px-4 py-3 text-xs text-red-300 flex items-start justify-between gap-4 shadow-krea">
+                <span className="break-words">{notice}</span>
+                <button
+                  onClick={() => setNotice(null)}
+                  className="text-red-300/70 hover:text-red-200 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
-        <div className="w-px h-5 bg-[#1f1f1f]" />
+            {/* Canvas Area */}
+            <div className="w-full h-full relative">
+              <WorkflowCanvas workflowId={workflowId} />
+              <BottomToolbar />
+            </div>
+          </div>
+        </main>
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-5 h-5 bg-[#7c3aed] rounded-md" />
-          <span className="text-sm font-bold text-[#e5e5e5]">NextFlow</span>
-        </div>
-
-        <div className="w-px h-5 bg-[#1f1f1f]" />
-
-        {/* Workflow name */}
-        <input
-          value={workflowName}
-          onChange={e => setWorkflowName(e.target.value)}
-          onBlur={() => { void persistWorkflowName() }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              ;(e.currentTarget as HTMLInputElement).blur()
-            }
-          }}
-          className="bg-transparent text-sm text-[#e5e5e5] outline-none
-                     border-b border-transparent focus:border-[#1f1f1f]
-                     min-w-[160px] max-w-[300px]"
-        />
-
-        {/* Save indicator */}
-        {isSaving && (
-          <span className="text-xs text-[#6b7280] flex items-center gap-1">
-            <Loader2 size={10} className="animate-spin" /> Saving...
-          </span>
-        )}
-        {isDirty && !isSaving && (
-          <span className="text-xs text-[#6b7280]">Unsaved</span>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={handleLoadSample}
-            disabled={isRunning}
-            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
-                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Sparkles size={14} />
-            Load Sample
-          </button>
-
-          <button
-            onClick={() => importFileInputRef.current?.click()}
-            disabled={isRunning}
-            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
-                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Upload size={14} />
-            Import JSON
-          </button>
-          <input
-            ref={importFileInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              void handleImportFile(file).catch((error) => {
-                console.error(error)
-                alert('Failed to import workflow JSON.')
-              }).finally(() => {
-                if (importFileInputRef.current) importFileInputRef.current.value = ''
-              })
-            }}
-          />
-
-          <button
-            onClick={handleRunSelected}
-            disabled={isRunning || selectedNodeIds.length === 0}
-            className="flex items-center gap-2 px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
-                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Play size={12} />
-            Run Selected ({selectedNodeIds.length})
-          </button>
-
-          {/* Run all button */}
-          <button
-            onClick={handleRunAll}
-            disabled={isRunning || nodes.length === 0}
-            className="flex items-center gap-2 px-4 py-1.5 bg-[#7c3aed]
-                       hover:bg-[#6d28d9] rounded-lg text-sm font-medium text-white
-                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
-            {isRunning ? 'Running...' : 'Run'}
-          </button>
-
-          {/* Export */}
-          <button
-            onClick={handleExport}
-            className="px-3 py-1.5 border border-[#1f1f1f] hover:border-[#2a2a2a]
-                       rounded-lg text-sm text-[#6b7280] hover:text-[#e5e5e5] transition-colors"
-          >
-            <Download size={14} />
-          </button>
-
-          <UserButton />
-        </div>
-      </header>
-
-      {notice && (
-        <div className="mx-4 mt-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300 flex items-start justify-between gap-3">
-          <span className="break-words">{notice}</span>
-          <button
-            onClick={() => setNotice(null)}
-            className="text-red-300/70 hover:text-red-200 transition-colors"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Canvas */}
-      <div className="flex-1 relative overflow-hidden">
-        <WorkflowCanvas workflowId={workflowId} />
+        <RightSidebar />
       </div>
-    </div>
+    </ReactFlowProvider>
   )
 }

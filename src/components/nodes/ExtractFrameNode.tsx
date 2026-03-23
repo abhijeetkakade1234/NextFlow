@@ -18,7 +18,7 @@ export function ExtractFrameNode({ id, data }: NodeProps<ExtractFrameFlowNode>) 
     try {
       const workflowId = (window as any).__currentWorkflowId
       if (!workflowId) {
-        updateNodeData(id, { isRunning: false, error: 'Save the workflow first' })
+        updateNodeData(id, { isRunning: false, error: 'Save workflow first' })
         return
       }
       const res = await fetch('/api/runs', {
@@ -38,68 +38,85 @@ export function ExtractFrameNode({ id, data }: NodeProps<ExtractFrameFlowNode>) 
   }
 
   return (
-    <BaseNode id={id} title="Extract Frame" icon={<Film size={14} />} onRun={handleRun}>
-      {/* Video input handle */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="video_url"
-          style={{ top: '50%' }}
-          data-handletype="video_url"
-          className="!bg-green-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <div className="ml-4 text-xs text-[#6b7280]">Video: required</div>
-      </div>
-
-      {/* Timestamp input */}
-      <div className="relative mb-3">
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="timestamp"
-          style={{ top: '50%' }}
-          data-handletype="text"
-          className="!bg-[#7c3aed] !border-2 !border-[#0a0a0a] !w-3 !h-3"
-        />
-        <label className="text-xs text-[#6b7280] mb-1 block ml-4">Timestamp</label>
-        <input
-          type="text"
-          value={data.timestamp}
-          onChange={e => updateNodeData(id, { timestamp: e.target.value })}
-          disabled={timestampConnected}
-          placeholder='e.g. 5 or "50%"'
-          className="w-full bg-[#0a0a0a] border border-[#1f1f1f] rounded-lg px-2 py-1.5
-                     text-xs text-[#e5e5e5] placeholder-[#6b7280] outline-none
-                     focus:border-[#7c3aed] nodrag disabled:opacity-40 disabled:cursor-not-allowed"
-        />
-        <p className="text-xs text-[#6b7280] mt-1">Seconds (e.g. &quot;5&quot;) or percent (e.g. &quot;50%&quot;)</p>
-      </div>
-
-      {data.result && (
-        <div className="mb-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={data.result}
-            alt="Extracted frame"
-            className="w-full h-24 object-cover rounded-lg border border-[#1f1f1f]"
-            onError={() => updateNodeData(id, { error: 'Extracted frame URL is not renderable in browser.' })}
+    <BaseNode id={id} title="Frame Extractor" icon={<Film size={18} />} onRun={handleRun}>
+      <div className="flex flex-col gap-5">
+        {/* Video input handle */}
+        <div className="relative bg-white/5 rounded-2xl px-4 py-3 border border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Film size={12} className="text-krea-muted" />
+            <span className="text-[10px] font-bold text-white uppercase tracking-widest">Video Stream</span>
+          </div>
+          <div className="flex items-center gap-3">
+             <span className="text-[9px] font-bold text-red-400 uppercase">Input</span>
+             <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+          </div>
+          <Handle
+            type="target"
+            position={Position.Left}
+            id="video_url"
+            data-handletype="video_url"
+            className="!bg-red-500"
           />
         </div>
-      )}
-      {data.error && (
-        <div className="mb-2 p-2 bg-[#ef4444]/10 rounded-lg border border-[#ef4444]/30">
-          <p className="text-xs text-red-400">{data.error}</p>
+
+        {/* Timestamp input */}
+        <div className="relative group/input">
+           <div className="flex items-center justify-between mb-2 px-1">
+             <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest">Seek Time</span>
+           </div>
+           
+           <div className="relative">
+            <input
+              type="text"
+              value={data.timestamp}
+              onChange={e => updateNodeData(id, { timestamp: e.target.value })}
+              disabled={timestampConnected}
+              placeholder='e.g. 5 or "50%"'
+              className="w-full bg-white/5 border border-white/5 rounded-2xl px-4 py-3
+                         text-sm font-bold text-white placeholder-white/20 outline-none
+                         focus:border-krea-accent/50 transition-all nodrag disabled:opacity-40 disabled:cursor-not-allowed"
+            />
+            <Handle
+              type="target"
+              position={Position.Left}
+              id="timestamp"
+              data-handletype="text"
+              className="opacity-0 group-hover/input:opacity-100 transition-opacity"
+            />
+           </div>
+           <p className="text-[9px] text-krea-muted mt-2 px-1 uppercase tracking-tighter">Enter seconds or percentage (e.g. 50%)</p>
         </div>
-      )}
+
+        {/* Preview */}
+        {data.result ? (
+          <div className="animate-in fade-in zoom-in-95 duration-500">
+            <div className="aspect-video w-full rounded-[24px] overflow-hidden border border-white/10 shadow-xl bg-black/40">
+              <img src={data.result} alt="Extracted frame" className="w-full h-full object-cover" />
+            </div>
+          </div>
+        ) : (
+          <div className="py-8 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-[24px] opacity-20">
+             <span className="text-[9px] font-bold text-white uppercase tracking-widest">Frame will appear here</span>
+          </div>
+        )}
+
+        {data.error && (
+          <div className="bg-krea-error/10 border border-krea-error/20 rounded-2xl p-3">
+            <p className="text-[10px] font-bold text-krea-error uppercase tracking-widest text-center">{data.error}</p>
+          </div>
+        )}
+      </div>
 
       <Handle
         type="source"
         position={Position.Right}
         id="output"
         data-handletype="image_url"
-        className="!bg-blue-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
+        className="!bg-blue-500"
       />
     </BaseNode>
   )
 }
+
+export default ExtractFrameNode
+

@@ -1,8 +1,7 @@
-// src/components/sidebar/RightSidebar.tsx
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, ChevronLeft, History, Loader2, ArrowLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft, History, Loader2, ArrowLeft, Clock, Activity } from 'lucide-react'
 import { useUIStore } from '@/store/ui-store'
 import { cn } from '@/lib/utils'
 import type { NodeResult, WorkflowRun } from '@/types/workflow'
@@ -14,16 +13,16 @@ function getWorkflowIdFromPath(pathname: string): string | null {
 }
 
 function getStatusClasses(status: WorkflowRun['status']): string {
-  if (status === 'SUCCESS') return 'text-green-400 bg-green-500/10 border-green-500/20'
-  if (status === 'FAILED') return 'text-red-400 bg-red-500/10 border-red-500/20'
-  if (status === 'PARTIAL') return 'text-orange-400 bg-orange-500/10 border-orange-500/20'
-  return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'
+  if (status === 'SUCCESS') return 'text-krea-success bg-krea-success/10 border-krea-success/20'
+  if (status === 'FAILED') return 'text-krea-error bg-krea-error/10 border-krea-error/20'
+  if (status === 'PARTIAL') return 'text-krea-warning bg-krea-warning/10 border-krea-warning/20'
+  return 'text-krea-accent bg-krea-accent/10 border-krea-accent/20'
 }
 
 function getScopeLabel(scope: WorkflowRun['scope']): string {
-  if (scope === 'FULL') return 'Full'
-  if (scope === 'SINGLE') return 'Single'
-  return 'Selected'
+  if (scope === 'FULL') return 'Full Run'
+  if (scope === 'SINGLE') return 'Single Node'
+  return 'Selected Nodes'
 }
 
 function formatDuration(durationMs?: number): string {
@@ -51,9 +50,9 @@ function renderCompact(value: unknown): string {
 }
 
 function nodeStatusClasses(status: NodeResult['status']): string {
-  if (status === 'SUCCESS') return 'text-green-400 border-green-500/20 bg-green-500/10'
-  if (status === 'FAILED') return 'text-red-400 border-red-500/20 bg-red-500/10'
-  return 'text-yellow-400 border-yellow-500/20 bg-yellow-500/10'
+  if (status === 'SUCCESS') return 'text-krea-success border-krea-success/20 bg-krea-success/10'
+  if (status === 'FAILED') return 'text-krea-error border-krea-error/20 bg-krea-error/10'
+  return 'text-krea-accent border-krea-accent/20 bg-krea-accent/10'
 }
 
 function toEpoch(value?: string): number | null {
@@ -130,45 +129,46 @@ export function RightSidebar() {
   return (
     <aside
       className={cn(
-        'h-full bg-[#111111] border-l border-[#1f1f1f] flex flex-col transition-all duration-200 flex-shrink-0',
-        rightSidebarOpen ? 'w-72' : 'w-12'
+        'h-full bg-krea-surface border-l border-krea-border flex flex-col transition-all duration-300 shadow-krea overflow-hidden',
+        rightSidebarOpen ? 'w-80' : 'w-[72px]'
       )}
     >
       {rightSidebarOpen ? (
         <>
           {/* Header */}
-          <div className="px-4 py-3 border-b border-[#1f1f1f] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <History size={14} className="text-[#7c3aed]" />
-              <h2 className="text-sm font-semibold text-[#e5e5e5]">Run History</h2>
+          <div className="px-5 py-4 flex items-center justify-between border-b border-white/5">
+            <div className="flex items-center gap-2.5">
+              <History size={18} className="text-krea-accent" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">History</h2>
             </div>
             <button
               onClick={toggleRightSidebar}
-              className="p-1 rounded text-[#6b7280] hover:text-[#e5e5e5] hover:bg-[#161616] transition-colors"
+              className="p-1.5 rounded-xl text-krea-muted hover:text-white hover:bg-white/10 transition-all"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={18} />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 hide-scrollbar">
             {!workflowId && (
-              <div className="text-center py-10 px-3">
-                <History size={28} className="text-[#1f1f1f] mx-auto mb-2" />
-                <p className="text-sm text-[#6b7280]">Open a workflow to view runs</p>
+              <div className="text-center py-12 px-4 opacity-40">
+                <History size={32} className="mx-auto mb-3" />
+                <p className="text-sm">Open a workflow to view runs</p>
               </div>
             )}
 
             {workflowId && isLoading && runs.length === 0 && (
-              <div className="flex items-center justify-center py-8 text-[#6b7280] text-sm gap-2">
-                <Loader2 size={14} className="animate-spin" /> Loading runs...
+              <div className="flex flex-col items-center justify-center py-12 text-krea-muted gap-3">
+                <Loader2 size={24} className="animate-spin text-krea-accent" />
+                <span className="text-xs font-medium">Loading history...</span>
               </div>
             )}
 
             {workflowId && !isLoading && runs.length === 0 && (
-              <div className="text-center py-10 px-3">
-                <History size={28} className="text-[#1f1f1f] mx-auto mb-2" />
-                <p className="text-sm text-[#6b7280]">No runs yet</p>
-                <p className="text-xs text-[#6b7280] mt-1">Run a workflow to see history here</p>
+              <div className="text-center py-12 px-4 opacity-40">
+                <History size={32} className="mx-auto mb-3" />
+                <p className="text-sm">No runs yet</p>
+                <p className="text-xs mt-1">Run a workflow to see history here</p>
               </div>
             )}
 
@@ -182,111 +182,135 @@ export function RightSidebar() {
                   key={run.id}
                   onClick={() => setSelectedRunId(run.id)}
                   className={cn(
-                    'w-full text-left rounded-lg border p-2.5 transition-colors',
+                    'w-full text-left rounded-2xl border p-4 transition-all duration-200 group relative overflow-hidden',
                     isSelected
-                      ? 'border-[#7c3aed] bg-[#161616]'
-                      : 'border-[#1f1f1f] hover:border-[#2a2a2a] hover:bg-[#141414]'
+                      ? 'border-krea-accent bg-krea-accent/5'
+                      : 'border-white/5 hover:border-white/20 hover:bg-white/5'
                   )}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[#9ca3af] font-mono truncate">{run.id.slice(-8)}</span>
-                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded border uppercase', getStatusClasses(run.status))}>
-                      {run.status}
+                  {/* Top Row: Scope & Time */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-white uppercase tracking-tight">
+                      {getScopeLabel(run.scope)}
+                    </span>
+                    <span className="text-[10px] text-krea-muted font-medium">
+                      {new Date(run.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-[#9ca3af]">
-                    <span>{getScopeLabel(run.scope)}</span>
-                    <span>{formatDuration(run.durationMs)}</span>
+
+                  {/* Middle Row: Duration & Nodes Count */}
+                  <div className="flex items-center gap-3 text-[10px] text-krea-muted mb-3">
+                    <span className="flex items-center gap-1 font-mono">
+                      {formatDuration(run.durationMs)}
+                    </span>
+                    <span className="flex items-center gap-1 opacity-60">
+                      {completed}/{total} nodes
+                    </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-[#6b7280]">
-                    <span>{completed}/{total} nodes</span>
-                    <span>{new Date(run.createdAt).toLocaleTimeString()}</span>
+                  
+                  {/* Bottom Row: ID & Status */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-krea-muted group-hover:text-krea-text-secondary transition-colors uppercase">
+                      ID: {run.id.slice(-8).toUpperCase()}
+                    </span>
+                    <span className={cn('text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tight border', getStatusClasses(run.status))}>
+                      {run.status}
+                    </span>
                   </div>
                 </button>
               )
             })}
 
             {selectedRun && (
-              <div className="space-y-2">
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                 <button
                   onClick={() => setSelectedRunId(null)}
-                  className="w-full flex items-center gap-2 text-xs text-[#9ca3af] hover:text-[#e5e5e5]
-                             px-2 py-1 rounded border border-[#1f1f1f] hover:border-[#2a2a2a] transition-colors"
+                  className="group flex items-center gap-2 text-xs font-bold text-krea-muted hover:text-white transition-all mb-2"
                 >
-                  <ArrowLeft size={12} /> Back to runs
+                  <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                  BACK TO HISTORY
                 </button>
-                <div className="rounded-lg border border-[#1f1f1f] bg-[#0f0f0f] p-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-mono text-[#9ca3af]">
-                      Run {selectedRun.id.slice(-8)}
+
+                <div className="rounded-2xl border border-krea-accent/30 bg-krea-accent/5 p-4 shadow-lg shadow-krea-accent/10">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <span className="text-[10px] font-mono font-bold text-krea-accent-light">
+                      RUN DETAILS / {selectedRun.id.slice(-8).toUpperCase()}
                     </span>
-                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded border uppercase', getStatusClasses(selectedRun.status))}>
+                    <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tight border', getStatusClasses(selectedRun.status))}>
                       {selectedRun.status}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-[#6b7280]">
-                    <div>Scope: <span className="text-[#9ca3af]">{getScopeLabel(selectedRun.scope)}</span></div>
-                    <div>Duration: <span className="text-[#9ca3af]">{formatDuration(selectedRun.durationMs)}</span></div>
-                    <div className="col-span-2">
-                      Started: <span className="text-[#9ca3af]">{new Date(selectedRun.createdAt).toLocaleString()}</span>
+                  <div className="grid grid-cols-2 gap-y-3 text-[11px]">
+                    <div className="flex flex-col">
+                      <span className="text-krea-muted mb-0.5">Scope</span>
+                      <span className="text-white font-bold">{getScopeLabel(selectedRun.scope)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-krea-muted mb-0.5">Duration</span>
+                      <span className="text-white font-bold">{formatDuration(selectedRun.durationMs)}</span>
+                    </div>
+                    <div className="flex flex-col col-span-2">
+                      <span className="text-krea-muted mb-0.5">Started At</span>
+                      <span className="text-white font-medium">{new Date(selectedRun.createdAt).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
-                {[...selectedRun.nodeResults]
-                  .sort((a, b) => {
-                    const aTs = toEpoch(a.startedAt) ?? 0
-                    const bTs = toEpoch(b.startedAt) ?? 0
-                    return aTs - bTs
-                  })
-                  .map((nodeResult) => {
-                  const parsedInputs = parseJson(nodeResult.inputs)
-                  const parsedOutput = parseJson(nodeResult.output)
-                  return (
-                    <div key={nodeResult.id} className="rounded-lg border border-[#1f1f1f] bg-[#101010] p-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-[#e5e5e5] truncate">
-                          {nodeResult.nodeLabel ?? nodeResult.nodeType}
-                        </span>
-                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded border uppercase', nodeStatusClasses(nodeResult.status))}>
-                          {nodeResult.status}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-[11px] text-[#9ca3af]">
-                        <p className="truncate">Inputs: {renderCompact(parsedInputs)}</p>
-                        {nodeResult.error ? (
-                          <p className="truncate text-red-400 mt-1">Error: {nodeResult.error}</p>
-                        ) : (
-                          <p className="truncate mt-1">Output: {renderCompact(parsedOutput)}</p>
-                        )}
-                        <p className="text-[#6b7280] mt-1">Node duration: {formatDuration(nodeResult.durationMs)}</p>
-                        <p className="text-[#6b7280] mt-1">
-                          Start offset: {formatOffset(nodeResult.startedAt, selectedRun.startedAt)}
-                        </p>
-                        <p className="text-[#6b7280] mt-1 truncate">
-                          Started: {nodeResult.startedAt ? new Date(nodeResult.startedAt).toLocaleTimeString() : '--'}
-                        </p>
-                        <p className="text-[#6b7280] mt-1 truncate">
-                          Completed: {nodeResult.completedAt ? new Date(nodeResult.completedAt).toLocaleTimeString() : '--'}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
+                <div className="space-y-3">
+                  <p className="px-1 text-[10px] font-bold text-krea-muted uppercase tracking-[0.2em]">Nodes Timeline</p>
+                  {[...selectedRun.nodeResults]
+                    .sort((a, b) => (toEpoch(a.startedAt) ?? 0) - (toEpoch(b.startedAt) ?? 0))
+                    .map((nodeResult) => {
+                      const parsedInputs = parseJson(nodeResult.inputs)
+                      const parsedOutput = parseJson(nodeResult.output)
+                      return (
+                        <div key={nodeResult.id} className="rounded-2xl border border-white/5 bg-white/2 p-4 hover:border-white/10 transition-colors group">
+                          <div className="flex items-center justify-between gap-3 mb-3">
+                            <span className="text-sm font-bold text-white truncate">
+                              {nodeResult.nodeLabel ?? nodeResult.nodeType}
+                            </span>
+                            <span className={cn('text-[9px] px-2 py-0.5 rounded-full font-bold uppercase border', nodeStatusClasses(nodeResult.status))}>
+                              {nodeResult.status}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2 text-[11px]">
+                            <div className="bg-black/20 rounded-lg p-2 font-mono text-krea-text-secondary overflow-hidden max-h-24 overflow-y-auto border border-white/5">
+                              <span className="text-krea-muted block mb-1">OUTPUT</span>
+                              {nodeResult.error ? (
+                                <span className="text-krea-error">{nodeResult.error}</span>
+                              ) : (
+                                <span className="whitespace-pre-wrap">{renderCompact(parsedOutput)}</span>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-[10px] text-krea-muted font-medium pt-1">
+                              <span>Offset: {formatOffset(nodeResult.startedAt, selectedRun.startedAt)}</span>
+                              <span>{formatDuration(nodeResult.durationMs)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                  })}
+                </div>
               </div>
             )}
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center pt-3">
+        <div className="flex flex-col items-center pt-6">
           <button
             onClick={toggleRightSidebar}
-            className="p-2 rounded-lg text-[#6b7280] hover:text-[#e5e5e5] hover:bg-[#161616] transition-colors"
+            className="p-3 rounded-2xl text-krea-muted hover:text-white hover:bg-white/10 transition-all font-bold"
           >
-            <ChevronLeft size={16} />
+             <ChevronLeft size={20} />
           </button>
+          <div className="mt-4 rotate-90 whitespace-nowrap text-[10px] font-bold text-krea-muted tracking-[0.3em] uppercase opacity-50">
+            Run History
+          </div>
         </div>
       )}
     </aside>
   )
 }
+

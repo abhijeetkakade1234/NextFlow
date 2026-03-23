@@ -1,13 +1,11 @@
-// src/components/canvas/CustomEdge.tsx
-'use client'
-import { BaseEdge, EdgeProps, getSmoothStepPath } from '@xyflow/react'
+import { BaseEdge, EdgeProps, getBezierPath } from '@xyflow/react'
 
 export function CustomEdge({
   sourceX, sourceY, targetX, targetY,
   sourcePosition, targetPosition,
   style, markerEnd,
 }: EdgeProps) {
-  const [edgePath] = getSmoothStepPath({
+  const [edgePath] = getBezierPath({
     sourceX, sourceY, targetX, targetY,
     sourcePosition, targetPosition,
   })
@@ -18,11 +16,12 @@ export function CustomEdge({
       markerEnd={markerEnd}
       style={{
         stroke: '#7c3aed',
-        strokeWidth: 2,
-        strokeDasharray: '8 4',
-        animation: 'edge-flow 1.5s linear infinite',
+        strokeWidth: 2.5,
+        strokeDasharray: '5,5',
+        transition: 'stroke 0.3s ease',
         ...style,
       }}
     />
   )
 }
+

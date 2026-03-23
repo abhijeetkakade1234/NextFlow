@@ -31,9 +31,9 @@ export function useAutoSave(options?: UseAutoSaveOptions) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: workflowName.trim() || 'Untitled Workflow',
-            nodesJson: nodes,
-            edgesJson: edges,
-            viewport,
+            nodesJson: Array.isArray(nodes) ? nodes : [],
+            edgesJson: Array.isArray(edges) ? edges : [],
+            viewport: viewport || { x: 0, y: 0, zoom: 1 },
           }),
         })
         if (!res.ok) {

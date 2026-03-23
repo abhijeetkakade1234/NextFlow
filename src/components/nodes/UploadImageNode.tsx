@@ -5,6 +5,7 @@ import { Image as ImageIcon, Loader2, Upload } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { BaseNode } from './BaseNode'
 import { useWorkflowStore } from '@/store/workflow-store'
+import { cn } from '@/lib/utils'
 import type { UploadImageFlowNode } from '@/types/nodes'
 
 export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
@@ -24,7 +25,7 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
   const handleUpload = useCallback(async (file: File) => {
     try {
       setIsUploading(true)
-      setUploadStatus('Preparing upload...')
+      setUploadStatus('Preparing...')
       updateNodeData(id, { error: null })
 
       const res = await fetch('/api/upload/params', {
@@ -34,9 +35,7 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
       })
       const paramsPayload = await res.json()
       if (!res.ok) {
-        updateNodeData(id, {
-          error: paramsPayload.error ?? 'Failed to prepare upload params',
-        })
+        updateNodeData(id, { error: paramsPayload.error ?? 'Failed setup' })
         setIsUploading(false)
         setUploadStatus(null)
         return
@@ -54,20 +53,7 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
       })
       const assembly = await uploadRes.json()
       if (!uploadRes.ok) {
-        const uploadError =
-          assembly?.error ??
-          assembly?.message ??
-          (Array.isArray(assembly?.errors) ? assembly.errors.join(', ') : null) ??
-          `Transloadit upload failed (${uploadRes.status})`
-        updateNodeData(id, { error: uploadError })
-        setIsUploading(false)
-        setUploadStatus(null)
-        return
-      }
-      if (!assembly?.assembly_id) {
-        updateNodeData(id, {
-          error: 'Upload failed: missing assembly id from Transloadit',
-        })
+        updateNodeData(id, { error: 'Upload failed' })
         setIsUploading(false)
         setUploadStatus(null)
         return
@@ -75,16 +61,13 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
 
       let attempts = 0
       const poll = async (): Promise<string | null> => {
-        setUploadStatus(`Processing upload... (${Math.min(attempts + 1, 20)}/20)`)
+        setUploadStatus(`Uploading... ${Math.min(attempts + 1, 10)}`)
         const statusRes = await fetch(`https://api2.transloadit.com/assemblies/${assembly.assembly_id}`)
         const status = await statusRes.json()
         if (status.ok === 'ASSEMBLY_COMPLETED') {
-          return (
-            extractResultUrl(status.results?.optimized?.[0]) ??
-            extractResultUrl(status.results?.[':original']?.[0])
-          )
+          return extractResultUrl(status.results?.optimized?.[0]) ?? extractResultUrl(status.results?.[':original']?.[0])
         }
-        if (attempts++ < 20 && status.ok !== 'REQUEST_ABORTED') {
+        if (attempts++ < 10) {
           await new Promise(r => setTimeout(r, 1000))
           return poll()
         }
@@ -93,91 +76,104 @@ export function UploadImageNode({ id, data }: NodeProps<UploadImageFlowNode>) {
 
       const imageUrl = await poll()
       if (imageUrl) {
-        updateNodeData(id, {
-          imageUrl,
-          fileName: file.name,
-          error: null,
-        })
-        setIsUploading(false)
-        setUploadStatus(null)
+        updateNodeData(id, { imageUrl, fileName: file.name, error: null })
       } else {
-        updateNodeData(id, {
-          error: 'Upload polling timed out or assembly did not complete',
-        })
-        setIsUploading(false)
-        setUploadStatus(null)
+        updateNodeData(id, { error: 'Failed' })
       }
-    } catch (err) {
-      console.error('Upload failed', err)
-      updateNodeData(id, {
-        error: 'Upload failed. Check console/logs for details.',
-      })
+      setIsUploading(false)
+      setUploadStatus(null)
+    } catch {
+      updateNodeData(id, { error: 'Error' })
       setIsUploading(false)
       setUploadStatus(null)
     }
   }, [id, updateNodeData])
 
   return (
-    <BaseNode id={id} title="Upload Image" icon={<ImageIcon size={14} />} showRunButton={false}>
-      {data.imageUrl ? (
-        <div className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={data.imageUrl}
-            alt={data.fileName ?? 'uploaded'}
-            className="w-full h-32 object-cover rounded-lg border border-[#1f1f1f]"
-            onError={() =>
-              updateNodeData(id, {
-                error: 'Image URL could not be rendered in browser. Try re-uploading the file.',
-              })
-            }
-          />
-          <button
-            onClick={() => updateNodeData(id, { imageUrl: null, fileName: null })}
-            className="absolute top-1 right-1 bg-[#0a0a0a]/80 rounded p-0.5 text-[#6b7280] hover:text-red-400 transition-colors"
-          >
-            ✕
-          </button>
-          {data.fileName && (
-            <p className="text-xs text-[#6b7280] mt-1 truncate">{data.fileName}</p>
-          )}
-        </div>
-      ) : (
-        <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed
-                         border-[#1f1f1f] rounded-lg cursor-pointer hover:border-[#7c3aed]
-                         transition-colors nodrag">
-          {isUploading ? (
-            <>
-              <Loader2 size={20} className="text-[#7c3aed] mb-1 animate-spin" />
-              <span className="text-xs text-[#9ca3af]">{uploadStatus ?? 'Uploading...'}</span>
-            </>
-          ) : (
-            <>
-              <Upload size={20} className="text-[#6b7280] mb-1" />
-              <span className="text-xs text-[#6b7280]">jpg, jpeg, png, webp, gif</span>
-            </>
-          )}
-          <input
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp,.gif"
-            className="hidden"
-            disabled={isUploading}
-            onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-          />
-        </label>
-      )}
-      {data.error && (
-        <div className="mt-2 p-2 bg-[#ef4444]/10 rounded-lg border border-[#ef4444]/30">
-          <p className="text-xs text-red-400">{data.error}</p>
-        </div>
-      )}
+    <BaseNode id={id} title="Asset Importer" icon={<ImageIcon size={18} />} showRunButton={false}>
+      <div className="flex flex-col gap-4">
+        {data.imageUrl ? (
+          <div className="relative group/img animate-in fade-in zoom-in-95 duration-500">
+            <div className="aspect-video w-full rounded-[24px] overflow-hidden border border-white/10 shadow-xl bg-black/40">
+              <img
+                src={data.imageUrl}
+                alt={data.fileName ?? 'uploaded'}
+                className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-700"
+              />
+            </div>
+            <button
+              onClick={() => updateNodeData(id, { imageUrl: null, fileName: null })}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white
+                         flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all hover:bg-krea-error"
+            >
+              ✕
+            </button>
+            <div className="mt-3 px-1 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-krea-muted uppercase tracking-widest truncate max-w-[150px]">
+                {data.fileName || 'Image Asset'}
+              </span>
+              <span className="text-[9px] font-mono text-krea-muted bg-white/5 px-2 py-0.5 rounded-full">
+                IMG
+              </span>
+            </div>
+          </div>
+        ) : (
+          <label className={cn(
+            "flex flex-col items-center justify-center h-48 rounded-[32px] border-2 border-dashed transition-all cursor-pointer nodrag group/upload",
+            isUploading ? "border-krea-accent bg-krea-accent/5" : "border-white/5 hover:border-white/20 hover:bg-white/5"
+          )}>
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="relative">
+                   <div className="w-12 h-12 rounded-full border-2 border-white/5 flex items-center justify-center" />
+                   <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-t-krea-accent animate-spin" />
+                </div>
+                <span className="text-[10px] font-bold text-krea-accent uppercase tracking-widest animate-pulse">
+                  {uploadStatus}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/5 border border-white/5 flex items-center justify-center group-hover/upload:scale-110 transition-transform duration-300">
+                   <Upload size={20} className="text-krea-muted group-hover/upload:text-white transition-colors" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-white mb-1 uppercase tracking-tighter">Click to upload</p>
+                  <p className="text-[10px] font-medium text-krea-muted uppercase tracking-[0.05em]">PNG, JPG or WEBP</p>
+                </div>
+              </div>
+            )}
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.gif"
+              className="hidden"
+              disabled={isUploading}
+              onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+            />
+          </label>
+        )}
+
+        {data.error ? (
+          <div className="bg-krea-error/10 border border-krea-error/20 rounded-2xl p-3 animate-in slide-in-from-top-2">
+            <p className="text-[10px] font-bold text-krea-error uppercase tracking-widest text-center">{data.error}</p>
+          </div>
+        ) : (
+           <div className="px-1 opacity-40">
+             <div className="h-px w-full bg-white/5 mb-3" />
+             <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold text-krea-muted uppercase tracking-widest">Connect to input</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+             </div>
+           </div>
+        )}
+      </div>
 
       <Handle
         type="source"
         position={Position.Right}
         id="output"
         data-handletype="image_url"
-        className="!bg-blue-500 !border-2 !border-[#0a0a0a] !w-3 !h-3"
+        className="!bg-blue-500"
       />
     </BaseNode>
   )
